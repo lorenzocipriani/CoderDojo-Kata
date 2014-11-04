@@ -1,0 +1,191 @@
+@mixin kata-ninjas {
+	$kataNinjasColor: #F7AA00;
+
+	$highlightBg: $kataNinjasColor;
+	$highlightColor: #ffffff;
+    
+    $imageWidth: 300px;
+    $imageHeight: 400px;
+    
+    $ratingsWidth: 250px;
+    $ratingsHeight: 50px;
+
+	.kata-ninjas {
+		.kata-ninjas-header {
+			border-top: 22px solid $kataNinjasColor;
+			border-bottom: 3px solid $kataNinjasColor;
+		}
+		.kata-ninjas-group {
+			margin-top: 2rem;
+			.kata-ninjas-heading {
+				background-color: $lightBg;
+				padding: 3rem 2% 1rem;
+			}
+			.kata-ninjas-content {
+				background-color: $mediumBg;
+				padding: 3rem 2% 1rem;
+			}
+		}
+		.kata-tags {
+			width: 100%;
+			&.single-column .kata-tag {
+				float: none;
+				clear: both;
+			}
+			.kata-tag {
+				width: 30%;
+				float: left;
+				background-color: $darkBg;
+				position: relative;
+				padding: 0.9rem 4rem 1rem 0;
+				height: 4rem;
+				color: $darkColor;
+				margin: 0 3% 2rem 0;
+				text-align: center;
+				a, a:visited, a:link {
+					color: $darkColor;
+				}
+				a:hover, a:active {
+					color: $darkColor * 0.8;
+				}
+				span {
+					position: absolute;
+					right: 0;
+					top: 0;
+					height: 4rem;
+					width: 4rem;
+					padding: 0.9rem 0;
+					background-color: $highlightBg;
+					color: $highlightColor;
+				}
+			}
+		}
+		.alpha-filter {
+			.letter {
+				$rotation: 1deg;
+				display: block;
+				width: 6rem;
+				background-color: #fff;
+				height: 6rem;
+				text-align: center;
+				padding-top: 1.6rem;
+				margin: 0 1rem 1rem 0;
+				float: left;
+				border: 3px solid $lightColor;
+				transform: rotate($rotation);
+				a {
+					transform: rotate(-$rotation);
+					display: block;
+				}
+				a:visited, a:link {
+					color: $lightColor;
+				}
+				a:hover, a:active {
+					color: $lightColor * 0.8;
+				}
+				@media screen and (min-width: 1280px) {
+					&:nth-of-type(14n) {
+						clear: left;
+					}
+				}
+			}
+		}
+        
+        .ratings-panel {
+            position:relative;
+            overflow: hidden;
+            
+            img {
+                width: $imageWidth;
+                height: $imageHeight;
+                //position: relative;
+            }
+            
+            .description {
+                display: inline-block;
+                text-align: left;
+                width: 70%;
+            }
+            
+            .preview {
+                float: right;
+                position: relative;
+                width: 20%;
+            }
+            
+            
+            .star-rating {
+                font-size:0;
+                white-space:nowrap;
+                display:inline-block;
+                width:$ratingsWidth;
+                height:$ratingsHeight;
+                overflow:hidden;
+                position:absolute; 
+                top:10px; 
+                right: 10px;
+                background: url('data:image/svg+xml;base64,PHN2ZyB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4IiB3aWR0aD0iMjBweCIgaGVpZ2h0PSIyMHB4IiB2aWV3Qm94PSIwIDAgMjAgMjAiIGVuYWJsZS1iYWNrZ3JvdW5kPSJuZXcgMCAwIDIwIDIwIiB4bWw6c3BhY2U9InByZXNlcnZlIj48cG9seWdvbiBmaWxsPSIjREREREREIiBwb2ludHM9IjEwLDAgMTMuMDksNi41ODMgMjAsNy42MzkgMTUsMTIuNzY0IDE2LjE4LDIwIDEwLDE2LjU4MyAzLjgyLDIwIDUsMTIuNzY0IDAsNy42MzkgNi45MSw2LjU4MyAiLz48L3N2Zz4=');
+                background-size: contain;
+                
+                i {
+                    opacity: 0;
+                    position: absolute;
+                    left: 0;
+                    top: 0;
+                    height: 100%;
+                    width: 20%;
+                    z-index: 1;
+                    background: url('data:image/svg+xml;base64,PHN2ZyB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4IiB3aWR0aD0iMjBweCIgaGVpZ2h0PSIyMHB4IiB2aWV3Qm94PSIwIDAgMjAgMjAiIGVuYWJsZS1iYWNrZ3JvdW5kPSJuZXcgMCAwIDIwIDIwIiB4bWw6c3BhY2U9InByZXNlcnZlIj48cG9seWdvbiBmaWxsPSIjRkZERjg4IiBwb2ludHM9IjEwLDAgMTMuMDksNi41ODMgMjAsNy42MzkgMTUsMTIuNzY0IDE2LjE4LDIwIDEwLDE2LjU4MyAzLjgyLDIwIDUsMTIuNzY0IDAsNy42MzkgNi45MSw2LjU4MyAiLz48L3N2Zz4=');  
+                    background-size: contain;
+                }
+                
+                input { 
+                    -moz-appearance:none;
+                    -webkit-appearance:none;
+                    opacity: 0;
+                    display:inline-block;
+                    width: 20%;
+                    height: 100%; 
+                    margin:0;
+                    padding:0;
+                    z-index: 2;
+                    position: relative;
+                    &:hover + i,
+                    &:checked + i{
+                        opacity:1;    
+                    }
+                }
+                
+                i ~ i {
+                    width: 40%;
+                }
+                
+                i ~ i ~ i {
+                    width: 60%;
+                }
+                
+                i ~ i ~ i ~ i {
+                    width: 80%;
+                }
+                
+                i ~ i ~ i ~ i ~ i {
+                    width: 100%;
+                }
+            }
+
+            //JUST COSMETIC STUFF FROM HERE ON. THESE AREN'T THE DROIDS YOU ARE LOOKING FOR: MOVE ALONG.         
+            body{
+                font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", 
+                    Helvetica, Arial, "Lucida Grande", sans-serif;
+                &::before{
+                    height: 100%;
+                    content:'';
+                    width:0;
+                    background:red;
+                    vertical-align: middle;
+                    display:inline-block;
+                }
+            }
+        }
+    }
+}
