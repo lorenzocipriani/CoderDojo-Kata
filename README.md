@@ -1,9 +1,9 @@
-= CoderDojo Kata =
+# CoderDojo Kata #
 
 This repository contains the source for CoderDojo Kata wiki site based on MediaWiki.
 In the main design of the project, this is the Integration environment
 
-== Main design ==
+## Main design ##
 
 The development life-cycle is based on 3 environments:
 *  Development
@@ -19,15 +19,15 @@ The repository fetches data from the following git repositories:
 *  CoderDojo-Kata skins-CoderDojoKata
 *  CoderDojo-Kata extensions-CoderDojoKata
 
-== Integration Environment Workspace ==
+## Integration Environment Workspace ##
 
-=== Prerequisite ===
+### Prerequisite ###
 
 *  Git 1.7.5+
 
-=== Configuration ===
+### Configuration ###
 
-==== Quick configuration ====
+#### Quick configuration ####
 
 This is the entire command list without descriptions (E.g.: copy and paste in your command line to execute all).
 ```bash
@@ -61,7 +61,7 @@ git checkout -B integration-1.24 skins-CoderDojoKata-1.24 && \
 
 ```
 
-==== Step by step configuration ===
+#### Step by step configuration ####
 
 *  Create a folder in your git workspace an move into it
 ```bash
