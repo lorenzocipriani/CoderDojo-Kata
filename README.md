@@ -208,6 +208,9 @@ git commit -m 'Add kata-rel-1.24'
 ### First build ###
 
 When the configuration is complete, the first build can be made pushing all local repositories to remote branch (integration-1.24)
+```bash
+git push
+```
 
 ### Build updates ###
 
@@ -235,4 +238,5 @@ git pull -s subtree skins-CoderDojoKata-1.24 REL1_24
 git commit -a -m 'Update skins-CoderDojoKata-1.24'
 git pull -a -n kata-rel-1.24 REL1_24
 git commit -a -m 'Update kata-rel-1.24'
+git push
 ```
