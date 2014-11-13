@@ -1,0 +1,32 @@
+@import '_kata-ninjas';
+
+
+$lightBg: #E5E5E5;
+$mediumBg: #CCCCCC;
+$darkBg: #333333;
+$lightColor: #000;
+$mediumColor: #000;
+$darkColor: #fff;
+
+$sidebarBgColor: #2E7AC7;
+$sidebarColor: #fff;
+
+#Col1BodyContainer {
+	background: $sidebarBgColor;
+}
+
+.sidebar {
+	color: $sidebarColor;
+	a {
+		color: $sidebarColor;
+	}
+}
+
+
+#PageContainer {
+	#MainContainer {
+		padding: 0 2rem 0 2rem;
+	}
+	@include kata-ninjas();
+}
+
