@@ -1,5 +1,6 @@
 #!/bin/bash
 
+cd ~/git
 git clone --depth=1 --branch integration-1.24 https://github.com/lorenzocipriani/CoderDojo-Kata.git
 cd CoderDojo-Kata
 git remote add -t integration-1.24 -m integration-1.24 --no-tags kata-integration-1.24 https://github.com/lorenzocipriani/CoderDojo-Kata.git
