@@ -1,0 +1,38 @@
+#Col1BodyContainer
+{
+   background:#2E7AC7;
+}
+
+.sidebar
+{
+   color: white;
+}
+
+.sidebar a
+{
+   color: white;
+}
+
+
+.nav-tabs {
+    margin: 0;
+    padding: 0;
+    border: 0;    
+}
+.nav-tabs > li > a {
+    background: #DADADA;
+    border-radius: 0;
+}
+.nav-tabs > li.active > a,
+.nav-tabs > li.active > a:hover {
+    background: #F5F5F5;
+}
+
+/* Tab Content */
+.tab-pane {
+    background: #F5F5F5;
+    border-radius: 0;
+    border: 1px solid #DADADA;
+    padding: 10px;
+}
+
