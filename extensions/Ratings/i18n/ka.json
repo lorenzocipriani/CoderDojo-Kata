@@ -1,9 +1,0 @@
-{
-	"@metadata": {
-		"authors": [
-			"David1010"
-		]
-	},
-	"ratings-current-score": "მომხმარებლის მიმდინარე რეიტინგი: $1 ($2 {{PLURAL:$2|ხმა|ხმა}})",
-	"ratings-no-votes-yet": "ეს ჯერ არავის არ შეუფასებია."
-}
