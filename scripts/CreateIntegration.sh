@@ -61,5 +61,7 @@ git commit -m 'Add extensions-CoderDojoKata-1.24'
 
 git remote add -t REL1_24 -m REL1_24 --no-tags kata-rel-1.24 https://github.com/lorenzocipriani/CoderDojo-Kata.git
 git fetch --depth=1 kata-rel-1.24
-git pull -a -n kata-rel-1.24 REL1_24
+git pull --no-commit -a -n kata-rel-1.24 REL1_24
 git commit -m 'Add kata-rel-1.24'
+
+git push
