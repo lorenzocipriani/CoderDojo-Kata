@@ -125,6 +125,20 @@ $wgContentNamespaces[] = 3560;
 //
 
 /**
+ * MEDIAWIKI EXTENSIONS
+ */
+require_once "$IP/extensions/Ratings/Ratings.php";
+require_once "$IP/extensions/SemanticDrilldown/SemanticDrilldown.php";
+require_once "$IP/extensions/TemplateData/TemplateData.php";
+require_once "$IP/extensions/Validator/Validator.php"; 
+require_once "$IP/extensions/VisualEditor/VisualEditor.php";
+
+/**
+ * MEDIAWIKI SKINS
+ */
+require_once "$IP/skins/Vector/Vector.php";
+
+/**
  * CUSTOM EXTENSIONS
  */
 require_once "$IP/extensions/CoderDojoKata/CoderDojoKata.php";
@@ -132,15 +146,5 @@ require_once "$IP/extensions/CoderDojoKata/CoderDojoKata.php";
 /**
  * CUSTOM SKINS
  */
-require_once "$IP/skins/coderdojokata/CoderDojoKata.php";
-
-/**
- * MEDIAWIKI EXTENSIONS
- */
-require_once "$IP/extensions/CoderDojoKata/CoderDojoKata.php";
-
-/**
- * MEDIAWIKI SKINS
- */
-require_once "$IP/skins/coderdojokata/CoderDojoKata.php";
+require_once "$IP/skins/CoderDojoKata/CoderDojoKata.php";
 
