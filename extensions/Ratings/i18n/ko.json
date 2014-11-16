@@ -1,0 +1,17 @@
+{
+	"@metadata": {
+		"authors": [
+			"Priviet"
+		]
+	},
+	"ratings-desc": "사용자가 문서의 다른 \"속성\"에 등급을 매기도록 허용",
+	"right-rate": "문서의 특정 속성에 등급 매기기",
+	"ratings-starsratings-desc": "사용자가 문서의 어떤 속성의 등급을 평가하도록 단순 별 등급 관리를 표시하세요. 사용자들이 처음에 이미 투표했을 경우 사용자의 현재 투표를 표시하게 됩니다.",
+	"ratings-par-page": "등급을 매길 문서.",
+	"ratings-par-tag": "등급 매기기 태그. 태그는 문서의 어떤 속성이 등급 매겨진 것을 알려줍니다.",
+	"ratings-par-showdisabled": "사용자가 투표할 수 없을 때 등급을 보이기(읽기 전용 모드)",
+	"ratings-par-incsummary": "등급 요소 위의 현재 투표 요약을 보이기",
+	"ratings-votesummary-desc": "지정된 문서와 속성 페어에 대한 투표 요약을 표시",
+	"ratings-current-score": "현재 사용자 등급: $1 ($2 {{PLURAL:$2|등급}})",
+	"ratings-no-votes-yet": "아무도  아직  등급을 매기지  않았습니다. ."
+}
