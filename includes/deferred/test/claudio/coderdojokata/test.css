@@ -1,6 +1,0 @@
-/** TEST **/
-div#content {background-color: #F00;}
-div#content:before {
-  content: "AFTER BODY";
-  float: right;
-}
