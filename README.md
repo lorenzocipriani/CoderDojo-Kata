@@ -243,6 +243,7 @@ Pull latest changes from CoderDojo-Kata repository
 ```bash
 cd ~/git/CoderDojo-Kata-Deployment
 git pull --depth=1
+git commit -a -m 'Update deployment'
 ```
 
 Then push them to the target stage (scope: development, testing, production)
@@ -258,12 +259,13 @@ or
 git ftp push --all -s production
 ```
 
-### Deployment ###
+### Deployment updates ###
 
 Pull latest changes from CoderDojo-Kata repository
 ```bash
 cd ~/git/CoderDojo-Kata-Deployment
-git pull --depth=1
+git pull --depth=1 -a -f
+git commit -a -m 'Update deployment'
 ```
 
 Then push them to the target stage (scope: development, testing, production)
