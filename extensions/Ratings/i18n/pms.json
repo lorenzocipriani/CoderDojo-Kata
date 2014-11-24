@@ -1,0 +1,18 @@
+{
+	"@metadata": {
+		"authors": [
+			"Borichèt",
+			"Dragonòt"
+		]
+	},
+	"ratings-desc": "A përmët a j'utent ëd valuté \"propietà\" diferente dle pàgine",
+	"right-rate": "Valuté na propietà ëd na pàgina",
+	"ratings-starsratings-desc": "A smon un contròl ëd valutassion sempi an stèile an përmëttend a l'utent ëd valuté na serta propietà ëd na pàgina.\nËl vot atual ëd l'utent a sarà visualisà inissialment quand ch'a l'ha già votà.",
+	"ratings-par-page": "La pàgina ch'a l'é valutà.",
+	"ratings-par-tag": "La tichëtta ëd valutassion. La tichëtta a mòstra che \"propietà\" dla pàgina a l'é valutà.",
+	"ratings-par-showdisabled": "Smon-e le valutassion quand l'utent a peul pa voté (mach an letura).",
+	"ratings-par-incsummary": "Mostré un resumé dij vot atuaj dzora a l'element an valutassion?",
+	"ratings-votesummary-desc": "A mostra un curt resumé dij vot për la pàgina e la cobia ëd propietà spessificà.",
+	"ratings-current-score": "Valutassion corenta dl'utent: $1 ($2 {{PLURAL:$2|valutassion|valutassion}})",
+	"ratings-no-votes-yet": "Pa gnun a l'ha anco' valutà sossì."
+}

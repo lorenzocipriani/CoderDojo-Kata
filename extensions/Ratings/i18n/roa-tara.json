@@ -1,0 +1,11 @@
+{
+	"@metadata": {
+		"authors": [
+			"Joetaras"
+		]
+	},
+	"ratings-desc": "Permette a l'utinde de valutà \"probbietà\" diverse de le pàggene",
+	"right-rate": "Valute 'na certa probbietà d'a pàgene",
+	"ratings-current-score": "Valutazione de l'utende de mò: $1 ($2 {{PLURAL:$2|vote}})",
+	"ratings-no-votes-yet": "Nisciune l'ha valutate angore."
+}
