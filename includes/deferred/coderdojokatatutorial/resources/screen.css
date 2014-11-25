@@ -126,13 +126,18 @@
   display:none;
 }
 
+#PageContainer .kata-tutorial-step-title{
+	font-weight: bold;
+}
+
 #PageContainer .kata-mentors .kata-breadcrumbs .kata-breadcrumb {
     background-color: #333333;
+    /*border-radius: 5px 20px 5px;*/
     color: white;
     float: left;
     height: 4rem;
     margin: 0 1px 2rem 0;
-    padding: 0.9rem 4rem 1rem 0;
+    padding: 0.9rem 4rem 1rem 1rem;
     position: relative;
     text-align: center;
     width: 10%;
@@ -222,6 +227,10 @@
     vertical-align: middle;
 }
 
+#PageContainer .kata-mentors .kata-tutorial-navigation .kata-tutorial-navigation-item a{
+	color: #FFFFFF;
+}
+
 #PageContainer .kata-mentors .kata-tutorial-navigation .kata-tutorial-navigation-item-selected{
 	background-color: #cf2a27;
 }
@@ -263,4 +272,15 @@
 	text-align: center;
 }
 
+.mw-templatedata-doc-desc, .mw-templatedata-doc-params{
+	display:none;
+}
 
+#PageContainer .kata-tutorial-rating{
+	font-size:11px;
+	line-height: 15px;
+}
+
+#PageContainer .kata-tutorial-rating .rating_box{
+	line-height: 18px;
+}
