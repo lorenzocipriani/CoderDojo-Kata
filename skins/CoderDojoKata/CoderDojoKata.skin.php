@@ -26,12 +26,10 @@ class SkinCoderDojoKata extends SkinTemplate
 	 *
 	 * @param OutputPage $out
 	 */
-	/*
 	public function initPage( OutputPage $out ) {
 		parent::initPage( $out );
-		$out->addModules( 'skins.coderdojokata.js' );
+		$out->addModules( 'skins.coderdojokata' );
 	}
-	*/
  
 	/**
 	 * Add CSS via ResourceLoader
@@ -97,21 +95,21 @@ class CoderDojoKataTemplate extends BaseTemplate
 				}
 				break;
 				
-			case (($namespace >= 3100) && ($namespace <= 3199)):
+			case (($namespace >= NS_ORGANISER_RESOURCE) && ($namespace <= NS_ORGANISER_RESOURCE + 99)):
 				
 				$skinTemplate = "organiser";
 				$cssClasses = " organiser-resource" . $cssClasses;
 				$kataSection = "Organiser Resources > ";
 				break;
 				
-			case (($namespace >= 3300) && ($namespace <= 3399)):
+			case (($namespace >= NS_TECHNICAL_RESOURCE) && ($namespace <= NS_TECHNICAL_RESOURCE + 99)):
 				
 				$skinTemplate = "technical";
 				$cssClasses = " technical-resource" . $cssClasses;
 				$kataSection = "Technical Resources > ";
 				break;
 				
-			case (($namespace >= 3500) && ($namespace <= 3599)):
+			case (($namespace >= NS_NINJA_RESOURCE) && ($namespace <= NS_NINJA_RESOURCE + 99)):
 				
 				$skinTemplate = "ninja";
 				$cssClasses = " ninja-resource" . $cssClasses;

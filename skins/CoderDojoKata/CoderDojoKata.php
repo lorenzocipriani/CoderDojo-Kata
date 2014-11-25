@@ -30,6 +30,9 @@ $wgAutoloadClasses['SkinCoderDojoKata'] = __DIR__ . '/CoderDojoKata.skin.php';
 $wgMessagesDirs['CoderDojoKata'] = __DIR__ . '/i18n';
 
 $wgResourceModules['skins.coderdojokata'] = array(
+	'scripts' => array(
+		'coderdojokata/resources/alpha-filter.js'
+	),
 	'styles' => array(
 		'coderdojokata/resources/bootstrap.min.css' => array( 'media' => 'screen' ),
 		'coderdojokata/resources/style.css' => array( 'media' => 'screen' ),

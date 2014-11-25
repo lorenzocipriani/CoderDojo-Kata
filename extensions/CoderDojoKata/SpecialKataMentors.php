@@ -103,13 +103,13 @@ class SpecialKataMentors extends SpecialPage {
 		// $out->addHTML(
 		// 	Html::openElement( 'div', array( 'class' => 'kata-mentors' ) ). "\n"
 		// );
-		$out->addHTML(
-			Html::openElement('div', array( 'class' => 'row kata-category-title')). "\n".
-			Html::openElement('div', array( 'class' => 'col-xs-12')). "\n".
-			Html::element('h2', array(), 'Kata for Mentors').
-			Html::closeElement( 'div' )."\n".
-			Html::closeElement( 'div' )."\n"
-		);
+		// $out->addHTML(
+		// 	Html::openElement('div', array( 'class' => 'row kata-category-title')). "\n".
+		// 	Html::openElement('div', array( 'class' => 'col-xs-12')). "\n".
+		// 	Html::element('h2', array(), 'Kata for Mentors').
+		// 	Html::closeElement( 'div' )."\n".
+		// 	Html::closeElement( 'div' )."\n"
+		// );
 
 
 		// BEGIN kata-box languages
@@ -125,6 +125,7 @@ class SpecialKataMentors extends SpecialPage {
 		$this->closeKataBox($out);
 		// END kata-box languages
 
+		$KataMentorsTutorialListTitle = SpecialPage::getTitleFor('KataMentorsTutorialList');
 		// BEGIN kata-box categories
 		$res = $this->executeQuery($dbr, $this->getQueryTutorialsByCategory(NS_MENTOR_COURSE, "Topic"));
 		$tags = array();
@@ -133,9 +134,9 @@ class SpecialKataMentors extends SpecialPage {
 			array_push($tags, array(
 				'title' => str_replace('_', ' ', $obj->cat_title),
 				'linkParams' => array(
-					'title' => SpecialPage::getTitleFor('KataMentors'),
+					'title' => $KataMentorsTutorialListTitle,
 					'customAttribs' => array(),
-					'query' => array('type' => 'category', 'cat_name' => $obj->cat_title),
+					'query' => array('category' => $obj->cat_title, 'useskin' => $useskin),
 					'options' => array()
 				),
 				'count' => (empty($obj->pages) ? 0 : $obj->pages) // not using cat_pages 'cause same category could be used in a different namespace
@@ -168,9 +169,9 @@ class SpecialKataMentors extends SpecialPage {
 				array_push($tags, array(
 					'title' => str_replace('_', ' ', $obj->cat_title),
 					'linkParams' => array(
-						'title' => SpecialPage::getTitleFor('KataMentors'),
+						'title' => $KataMentorsTutorialListTitle,
 						'customAttribs' => array(),
-						'query' => array('type' => 'software', 'cat_name' => $obj->cat_title),
+						'query' => array('category' => $obj->cat_title, 'useskin' => $useskin),
 						'options' => array()
 					),
 					'filter' => $l,
@@ -188,7 +189,8 @@ class SpecialKataMentors extends SpecialPage {
 						Linker::link(SpecialPage::getTitleFor($this->getName()),
 							$l,
 							array(),
-							array('letter' => $l, 'useskin' => $useskin),
+							// array('letter' => $l, 'useskin' => $useskin),
+							array('useskin' => $useskin),
 							array()
 						));
 			} else {
