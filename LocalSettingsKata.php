@@ -127,10 +127,10 @@ $wgContentNamespaces[] = 3560;
 /**
  * MEDIAWIKI EXTENSIONS
  */
-require_once "$IP/extensions/Ratings/Ratings.php";
-require_once "$IP/extensions/SemanticDrilldown/SemanticDrilldown.php";
+//require_once "$IP/extensions/Ratings/Ratings.php";
+//require_once "$IP/extensions/SemanticDrilldown/SemanticDrilldown.php";
 require_once "$IP/extensions/TemplateData/TemplateData.php";
-require_once "$IP/extensions/Validator/Validator.php"; 
+//require_once "$IP/extensions/Validator/Validator.php"; 
 require_once "$IP/extensions/VisualEditor/VisualEditor.php";
 
 /**
