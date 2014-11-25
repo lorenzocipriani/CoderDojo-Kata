@@ -1,7 +1,7 @@
 #!/bin/bash
 
-WIKI_REL=$WIKI_REL
-KATA_REL=$KATA_REL
+WIKI_REL=REL1_24
+KATA_REL=1.24
 
 cd ~/git
 git clone --depth=1 --branch integration-$KATA_REL https://github.com/lorenzocipriani/CoderDojo-Kata.git
