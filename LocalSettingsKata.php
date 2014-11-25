@@ -131,7 +131,16 @@ $wgContentNamespaces[] = 3560;
 //require_once "$IP/extensions/SemanticDrilldown/SemanticDrilldown.php";
 require_once "$IP/extensions/TemplateData/TemplateData.php";
 //require_once "$IP/extensions/Validator/Validator.php"; 
+
 require_once "$IP/extensions/VisualEditor/VisualEditor.php";
+$wgDefaultUserOptions['visualeditor-enable'] = 1;
+$wgHiddenPrefs[] = 'visualeditor-enable';
+//$wgDefaultUserOptions['visualeditor-enable-experimental'] = 1;
+$wgVisualEditorParsoidURL = 'http://host1.lorenzocipriani.com:8142';
+$wgVisualEditorParsoidPrefix = 'kata';
+//$wgSessionsInObjectCache = true;
+//$wgVisualEditorParsoidForwardCookies = true;
+
 
 /**
  * MEDIAWIKI SKINS
