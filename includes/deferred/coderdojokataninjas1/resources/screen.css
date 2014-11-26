@@ -1,0 +1,199 @@
+#Col1BodyContainer {
+  background: #2e7ac7;
+}
+
+.sidebar {
+  color: white;
+}
+.sidebar a {
+  color: white;
+}
+
+#PageContainer #MainContainer {
+  padding: 0 2rem 0 2rem;
+}
+#PageContainer .kata-ninjas .kata-ninjas-header {
+  border-top: 22px solid #f7aa00;
+  border-bottom: 3px solid #f7aa00;
+}
+#PageContainer .kata-ninjas .kata-ninjas-group {
+  margin-top: 2rem;
+}
+#PageContainer .kata-ninjas .kata-ninjas-group .kata-ninjas-heading {
+  background-color: #e5e5e5;
+  padding: 3rem 2% 1rem;
+}
+#PageContainer .kata-ninjas .kata-ninjas-group .kata-ninjas-content {
+  background-color: #cccccc;
+  padding: 3rem 2% 3rem;
+}
+#PageContainer .kata-ninjas .kata-tags {
+  width: 100%;
+}
+#PageContainer .kata-ninjas .kata-tags.single-column .kata-tag {
+  float: none;
+  clear: both;
+}
+#PageContainer .kata-ninjas .kata-tags .kata-tag {
+  width: 30%;
+  float: left;
+  background-color: #333333;
+  position: relative;
+  padding: 0.9rem 4rem 1rem 0;
+  height: 4rem;
+  color: white;
+  margin: 0 3% 2rem 0;
+  text-align: center;
+}
+#PageContainer .kata-ninjas .kata-tags .kata-tag a, #PageContainer .kata-ninjas .kata-tags .kata-tag a:visited, #PageContainer .kata-ninjas .kata-tags .kata-tag a:link {
+  color: white;
+}
+#PageContainer .kata-ninjas .kata-tags .kata-tag a:hover, #PageContainer .kata-ninjas .kata-tags .kata-tag a:active {
+  color: #cccccc;
+}
+#PageContainer .kata-ninjas .kata-tags .kata-tag span {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 4rem;
+  width: 4rem;
+  padding: 0.9rem 0;
+  background-color: #f7aa00;
+  color: white;
+}
+#PageContainer .kata-ninjas .alpha-filter .letter {
+  display: block;
+  width: 6rem;
+  background-color: #fff;
+  height: 6rem;
+  text-align: center;
+  padding-top: 1.6rem;
+  margin: 0 1rem 1rem 0;
+  float: left;
+  border: 3px solid black;
+  transform: rotate(1deg);
+}
+#PageContainer .kata-ninjas .alpha-filter .letter a {
+  transform: rotate(-1deg);
+  display: block;
+}
+#PageContainer .kata-ninjas .alpha-filter .letter a:visited, #PageContainer .kata-ninjas .alpha-filter .letter a:link {
+  color: black;
+}
+#PageContainer .kata-ninjas .alpha-filter .letter a:hover, #PageContainer .kata-ninjas .alpha-filter .letter a:active {
+  color: black;
+}
+@media screen and (min-width: 1280px) {
+  #PageContainer .kata-ninjas .alpha-filter .letter:nth-of-type(14n) {
+    clear: left;
+  }
+}
+#PageContainer .kata-ninjas .ratings-panel {
+  position: relative;
+  overflow: hidden;
+}
+#PageContainer .kata-ninjas .video-block {
+	display: inline-block;
+    margin-bottom: 20px;
+    margin-right: 5em;
+}
+#PageContainer .kata-ninjas .video-block .title {
+	font-size: 1.3em;
+    margin-bottom: 5px;
+}
+#PageContainer .kata-ninjas .video-block .link {
+	text-align: center;
+    margin-top: 10px;
+}
+/*
+#PageContainer .kata-ninjas .ratings-panel img {
+  width: 300px;
+  height: 400px;
+}*/
+#PageContainer .kata-ninjas .more-video,
+#PageContainer .kata-ninjas .featured-video {
+	padding: 20px 0px 0px 20px;
+}
+#PageContainer .kata-ninjas .more-video {
+	min-height: 270px;
+	margin-bottom: 50px;
+}
+#PageContainer .kata-ninjas .description {
+  display: inline-block;
+  text-align: left;
+  width: 50%;
+}
+#PageContainer .kata-ninjas .more-video .description {
+  width: 60%;
+}
+#PageContainer .kata-ninjas .description .title {
+  font-size: 20px;
+  margin-bottom: 15px;
+}
+#PageContainer .kata-ninjas .preview {
+  float: right;
+  position: relative;
+  margin-bottom: 20px
+}
+#PageContainer .kata-ninjas .ratings-panel .star-rating {
+  font-size: 0;
+  white-space: nowrap;
+  display: inline-block;
+  width: 250px;
+  height: 50px;
+  overflow: hidden;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: url("data:image/svg+xml;base64,PHN2ZyB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4IiB3aWR0aD0iMjBweCIgaGVpZ2h0PSIyMHB4IiB2aWV3Qm94PSIwIDAgMjAgMjAiIGVuYWJsZS1iYWNrZ3JvdW5kPSJuZXcgMCAwIDIwIDIwIiB4bWw6c3BhY2U9InByZXNlcnZlIj48cG9seWdvbiBmaWxsPSIjREREREREIiBwb2ludHM9IjEwLDAgMTMuMDksNi41ODMgMjAsNy42MzkgMTUsMTIuNzY0IDE2LjE4LDIwIDEwLDE2LjU4MyAzLjgyLDIwIDUsMTIuNzY0IDAsNy42MzkgNi45MSw2LjU4MyAiLz48L3N2Zz4=");
+  background-size: contain;
+}
+#PageContainer .kata-ninjas .ratings-panel .star-rating i {
+  opacity: 0;
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 20%;
+  z-index: 1;
+  background: url("data:image/svg+xml;base64,PHN2ZyB2ZXJzaW9uPSIxLjEiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHg9IjBweCIgeT0iMHB4IiB3aWR0aD0iMjBweCIgaGVpZ2h0PSIyMHB4IiB2aWV3Qm94PSIwIDAgMjAgMjAiIGVuYWJsZS1iYWNrZ3JvdW5kPSJuZXcgMCAwIDIwIDIwIiB4bWw6c3BhY2U9InByZXNlcnZlIj48cG9seWdvbiBmaWxsPSIjRkZERjg4IiBwb2ludHM9IjEwLDAgMTMuMDksNi41ODMgMjAsNy42MzkgMTUsMTIuNzY0IDE2LjE4LDIwIDEwLDE2LjU4MyAzLjgyLDIwIDUsMTIuNzY0IDAsNy42MzkgNi45MSw2LjU4MyAiLz48L3N2Zz4=");
+  background-size: contain;
+}
+#PageContainer .kata-ninjas .ratings-panel .star-rating input {
+  -moz-appearance: none;
+  -webkit-appearance: none;
+  opacity: 0;
+  display: inline-block;
+  width: 20%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  z-index: 2;
+  position: relative;
+}
+#PageContainer .kata-ninjas .ratings-panel .star-rating input:hover + i, #PageContainer .kata-ninjas .ratings-panel .star-rating input:checked + i {
+  opacity: 1;
+}
+#PageContainer .kata-ninjas .ratings-panel .star-rating i ~ i {
+  width: 40%;
+}
+#PageContainer .kata-ninjas .ratings-panel .star-rating i ~ i ~ i {
+  width: 60%;
+}
+#PageContainer .kata-ninjas .ratings-panel .star-rating i ~ i ~ i ~ i {
+  width: 80%;
+}
+#PageContainer .kata-ninjas .ratings-panel .star-rating i ~ i ~ i ~ i ~ i {
+  width: 100%;
+}
+#PageContainer .kata-ninjas .ratings-panel body {
+  font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue",  Helvetica, Arial, "Lucida Grande", sans-serif;
+}
+#PageContainer .kata-ninjas .ratings-panel body::before {
+  height: 100%;
+  content: '';
+  width: 0;
+  background: red;
+  vertical-align: middle;
+  display: inline-block;
+}
