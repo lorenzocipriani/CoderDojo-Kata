@@ -20,11 +20,11 @@ git merge --squash -s subtree --no-commit skins-Vector-$KATA_REL/$WIKI_REL
 git read-tree --prefix=skins/Vector -u skins-Vector-$KATA_REL
 git commit -m "Add skins-Vector-${KATA_REL}"
 
-git remote add -t $WIKI_REL -m $WIKI_REL --no-tags extensions-VisualEditor-$KATA_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/VisualEditor.git
-git fetch --depth=1 extensions-VisualEditor-$KATA_REL
-git merge --squash -s subtree --no-commit extensions-VisualEditor-$KATA_REL/$WIKI_REL
-git read-tree --prefix=extensions/VisualEditor -u extensions-VisualEditor-$KATA_REL
-git commit -m "Add extensions-VisualEditor-${KATA_REL}"
+git remote add -t master -m master --no-tags extensions-VisualEditor https://gerrit.wikimedia.org/r/p/mediawiki/extensions/VisualEditor.git
+git fetch --depth=1 extensions-VisualEditor
+git merge --squash -s subtree --no-commit extensions-VisualEditor/master
+git read-tree --prefix=extensions/VisualEditor -u extensions-VisualEditor
+git commit -m "Add extensions-VisualEditor"
 
 git remote add -t $WIKI_REL -m $WIKI_REL --no-tags extensions-TemplateData-$KATA_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/TemplateData.git
 git fetch --depth=1 extensions-TemplateData-$KATA_REL
