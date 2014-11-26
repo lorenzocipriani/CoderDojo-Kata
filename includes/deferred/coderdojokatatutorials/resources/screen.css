@@ -1,0 +1,117 @@
+/* import files here, then call defined mixin later */
+/* section specific styles */
+#Col1BodyContainer {
+  background: #2e7ac7;
+}
+
+.sidebar {
+  color: white;
+}
+.sidebar a {
+  color: white;
+}
+
+#PageContainer {
+  /* call mixins defined in imported files, so they are specifically nested under this #PageContainer rule */
+  /* call section specific overrides */
+}
+#PageContainer #MainContainer {
+  padding: 0 2rem 0 2rem;
+}
+#PageContainer .kata-category-title {
+  border-top: 22px solid #2e7ac7;
+  border-bottom: 3px solid #2e7ac7;
+}
+#PageContainer .kata-box {
+  margin-top: 2rem;
+}
+#PageContainer .kata-box .kata-box-title {
+  background-color: #e5e5e5;
+  padding: 3rem 2% 1rem;
+}
+#PageContainer .kata-box .kata-box-content {
+  background-color: #cccccc;
+  padding: 3rem 2% 1rem;
+}
+#PageContainer .kata-tags {
+  width: 100%;
+}
+#PageContainer .kata-tags.single-column .kata-tag {
+  float: none;
+  clear: both;
+}
+#PageContainer .kata-tags .kata-tag {
+  width: 30%;
+  float: left;
+  background-color: #333333;
+  position: relative;
+  padding: 0.9rem 4rem 1rem 0;
+  min-height: 4rem;
+  color: white;
+  margin: 0 3% 2rem 0;
+  text-align: center;
+}
+#PageContainer .kata-tags .kata-tag a, #PageContainer .kata-tags .kata-tag a:visited, #PageContainer .kata-tags .kata-tag a:link {
+  color: white;
+}
+#PageContainer .kata-tags .kata-tag a:hover, #PageContainer .kata-tags .kata-tag a:active {
+  color: #cccccc;
+}
+#PageContainer .kata-tags .kata-tag span {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 4rem;
+  padding: 0.9rem 0;
+  background-color: #cf2a27;
+  color: white;
+}
+@media screen and (max-width: 767px) {
+  #PageContainer .kata-tags .kata-tag {
+    width: 45%;
+    margin-right: 5%;
+  }
+}
+@media screen and (max-width: 479px) {
+  #PageContainer .kata-tags .kata-tag {
+    width: 100%;
+    margin-right: 0%;
+  }
+}
+#PageContainer .alpha-filter .letter {
+  display: block;
+  width: 6rem;
+  background-color: #fff;
+  height: 6rem;
+  text-align: center;
+  padding-top: 1.6rem;
+  margin: 0 1rem 1rem 0;
+  float: left;
+  border: 3px solid black;
+  transform: rotate(1deg);
+}
+#PageContainer .alpha-filter .letter a {
+  transform: rotate(-1deg);
+  display: block;
+}
+#PageContainer .alpha-filter .letter a:visited, #PageContainer .alpha-filter .letter a:link {
+  color: black;
+}
+#PageContainer .alpha-filter .letter a:hover, #PageContainer .alpha-filter .letter a:active {
+  color: black;
+}
+@media screen and (min-width: 1280px) {
+  #PageContainer .alpha-filter .letter:nth-of-type(14n) {
+    clear: left;
+  }
+}
+#PageContainer .kata-mentors .kata-category-title {
+  /* only override border color */
+  border-color: #cf2a27;
+}
+#PageContainer .kata-mentors .kata-tags .kata-tag span {
+  /* inherit all properties, but define specific highlight color */
+  background-color: #cf2a27;
+  color: white;
+}
