@@ -1,0 +1,27 @@
+{
+	"name": "mediawiki/mediawiki-core-vendor",
+	"description": "External libraries required or recommened for use with MediaWiki",
+	"type": "managed-library-collection",
+	"license": "GPL-2.0+",
+	"repositories": [
+		{
+			"type": "vcs",
+			"url": "https://github.com/plancake/official-library-php-email-parser"
+		}
+	],
+	"require": {
+		"cdb/cdb": "1.0.0",
+		"cssjanus/cssjanus": "1.1.0",
+		"php": ">=5.3.3",
+		"psr/log": "1.0.0",
+		"monolog/monolog": "1.11.0",
+		"Plancake/EmailParser": "dev-master#e7453ead1f3a74810d8050a30afb96feed74477a",
+		"ruflin/elastica": "1.3.0.0"
+	},
+	"prefer-stable": true,
+	"config": {
+		"autoloader-suffix": "_mediawiki_vendor",
+		"preferred-install": "dist",
+		"vendor-dir": "."
+	}
+}
