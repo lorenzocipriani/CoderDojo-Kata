@@ -7,7 +7,8 @@
 			"Sapral Mikail",
 			"Tagir",
 			"Умар",
-			"아라"
+			"아라",
+			"Shirayuki"
 		]
 	},
 	"tog-underline": "Ӏинкаш белгалде:",
@@ -398,7 +399,7 @@
 	"searchresults": "Тохкама гIулакхахилар",
 	"searchresults-title": "\"$1\" тохка",
 	"notextmatches": "ОагIувнаша яздамий вIашагIакхетараш дац",
-	"prevn": "{{PLURAL:$1|хьалхйоаг|ар $1|хьалхйоаг|араш $1|хьалхйоаг|араш $1}}",
+	"prevn": "{{PLURAL:$1|хьалхйоагlар $1|хьалхйоагlараш $1|хьалхйоагlараш $1}}",
 	"nextn": "{{PLURAL:$1|тlехьайоагlар $1|тlехьайоагlараш $1|тlехьайоагlараш $1}}",
 	"prevn-title": "{{PLURAL:$1|1=$1 хьалхара йоазув|$1 хьалхара йоазувнаш}}",
 	"nextn-title": "{{PLURAL:$1|1=$1 тIехьара йоазув|$1 тIехьара йоазувнаш}}",
@@ -425,7 +426,6 @@
 	"search-relatedarticle": "шоайл дола",
 	"searchrelated": "гаргара",
 	"searchall": "деррига",
-	"showingresultsheader": "{{PLURAL:$5|1='''$1''' толамче укх '''$3''' долачарах|'''$1 — $2''' толамчаш укх '''$3''' долачарах}} '''$4'''а",
 	"search-nonefound": "ДIахаттама нийсамаш корадаьдац.",
 	"powersearch-legend": " Доккха тахкар",
 	"powersearch-ns": " ЦIерий аренашкахь лахар",
@@ -584,11 +584,10 @@
 	"newpages": "Керда оагIувнаш",
 	"move": "ЦIи хувца",
 	"movethispage": "Укх оагIува цIи хувца",
-	"pager-newer-n": "{{PLURAL:$1|кердагIа дара|кердагIа долачаьрахь|кердагIа дараш}} $1",
-	"pager-older-n": "{{PLURAL:$1|къаьнара дара|къаьнара долaчаьрахь|къаьнара дараш}} $1",
+	"pager-newer-n": "{{PLURAL:$1|кердагIа дара|кердагIа дараш|кердагIа долачаьрахь}} $1",
+	"pager-older-n": "{{PLURAL:$1|къаьнара дара|къаьнара дараш|къаьнара долaчаьрахь}} $1",
 	"booksources": "Китабий гIувам",
 	"booksources-search-legend": "Китаба лоаца маIандара тохкам",
-	"booksources-go": "Лаха",
 	"log": "Тептараш",
 	"allpages": "Еррига оагIувнаш",
 	"prevpage": "($1) хьалхара оагIув",
@@ -611,7 +610,7 @@
 	"watchthispage": "Укх оагIува теркам бе",
 	"unwatch": "Лора ма де",
 	"watchlist-details": "Шун теркама дагарченгахь йола  $1 {{PLURAL:$1|1=оагIув|оагIувнаш}}, дувцама оагIувнаш ца лоархIаш.",
-	"wlshowlast": "Тlехьара $1 сахьаташ $2 денош $3 хьахьокха",
+	"wlshowlast": "Тlехьара $1 сахьаташ $2 денош  хьахьокха",
 	"watchlist-options": "Зем баккха дагарена хувцамаш",
 	"watching": "Тохкам беча оагIув тIа тIадаккха",
 	"unwatching": "Тохкам беча оагIув тIера дIадаккха",
@@ -810,7 +809,6 @@
 	"exif-iimcategory-spo": "Нидзоамал",
 	"exif-iimcategory-war": "ТIемаш, кховсамаши латтараши",
 	"exif-iimcategory-wea": "Хаоттам",
-	"watchlistall2": "деррига",
 	"namespacesall": "деррига",
 	"monthsall": "деррига",
 	"confirm_purge_button": "ХIаа",
@@ -846,5 +844,6 @@
 	"htmlform-submit": "ДIадахьийта",
 	"htmlform-reset": "Хувцамаш юхадаккха",
 	"htmlform-selectorother-other": "Кхыдола",
-	"rightsnone": "(а)"
+	"rightsnone": "(а)",
+	"revdelete-summary": "хувцамий лоацам"
 }

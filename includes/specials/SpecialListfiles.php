@@ -87,7 +87,7 @@ class ImageListPager extends TablePager {
 		$this->mIncluding = $including;
 		$this->mShowAll = $showAll;
 
-		if ( $userName ) {
+		if ( $userName !== null && $userName !== '' ) {
 			$nt = Title::newFromText( $userName, NS_USER );
 			if ( !is_null( $nt ) ) {
 				$this->mUserName = $nt->getText();
@@ -203,7 +203,9 @@ class ImageListPager extends TablePager {
 			} else {
 				return false;
 			}
-		} elseif ( $this->getConfig()->get( 'MiserMode' ) && $this->mShowAll /* && mUserName === null */ ) {
+		} elseif ( $this->getConfig()->get( 'MiserMode' )
+			&& $this->mShowAll /* && mUserName === null */
+		) {
 			// no oi_timestamp index, so only alphabetical sorting in this case.
 			if ( $field === 'img_name' ) {
 				return true;
@@ -519,6 +521,7 @@ class ImageListPager extends TablePager {
 			);
 		}
 
+		$this->getOutput()->addModules( 'mediawiki.userSuggest' );
 		$fields['user'] = array(
 			'type' => 'text',
 			'name' => 'user',
@@ -527,6 +530,7 @@ class ImageListPager extends TablePager {
 			'default' => $this->mUserName,
 			'size' => '40',
 			'maxlength' => '255',
+			'cssclass' => 'mw-autocomplete-user', // used by mediawiki.userSuggest
 		);
 
 		$fields['ilshowall'] = array(
@@ -541,6 +545,7 @@ class ImageListPager extends TablePager {
 		unset( $query['title'] );
 		unset( $query['limit'] );
 		unset( $query['ilsearch'] );
+		unset( $query['ilshowall'] );
 		unset( $query['user'] );
 
 		$form = new HTMLForm( $fields, $this->getContext() );

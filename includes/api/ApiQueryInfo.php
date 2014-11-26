@@ -58,20 +58,20 @@ class ApiQueryInfo extends ApiQueryBase {
 	 */
 	public function requestExtraData( $pageSet ) {
 		$pageSet->requestField( 'page_restrictions' );
-		// when resolving redirects, no page will have this field
-		if ( !$pageSet->isResolvingRedirects() ) {
-			$pageSet->requestField( 'page_is_redirect' );
-		}
+		// If the pageset is resolving redirects we won't get page_is_redirect.
+		// But we can't know for sure until the pageset is executed (revids may
+		// turn it off), so request it unconditionally.
+		$pageSet->requestField( 'page_is_redirect' );
 		$pageSet->requestField( 'page_is_new' );
 		$config = $this->getConfig();
-		if ( !$config->get( 'DisableCounters' ) ) {
-			$pageSet->requestField( 'page_counter' );
-		}
 		$pageSet->requestField( 'page_touched' );
 		$pageSet->requestField( 'page_latest' );
 		$pageSet->requestField( 'page_len' );
 		if ( $config->get( 'ContentHandlerUseDB' ) ) {
 			$pageSet->requestField( 'page_content_model' );
+		}
+		if ( $config->get( 'PageLanguageUseDB' ) ) {
+			$pageSet->requestField( 'page_lang' );
 		}
 	}
 
@@ -328,9 +328,6 @@ class ApiQueryInfo extends ApiQueryBase {
 			: array();
 		$this->pageIsNew = $pageSet->getCustomField( 'page_is_new' );
 
-		if ( !$this->getConfig()->get( 'DisableCounters' ) ) {
-			$this->pageCounter = $pageSet->getCustomField( 'page_counter' );
-		}
 		$this->pageTouched = $pageSet->getCustomField( 'page_touched' );
 		$this->pageLatest = $pageSet->getCustomField( 'page_latest' );
 		$this->pageLength = $pageSet->getCustomField( 'page_len' );
@@ -392,9 +389,6 @@ class ApiQueryInfo extends ApiQueryBase {
 		if ( $titleExists ) {
 			$pageInfo['touched'] = wfTimestamp( TS_ISO_8601, $this->pageTouched[$pageid] );
 			$pageInfo['lastrevid'] = intval( $this->pageLatest[$pageid] );
-			$pageInfo['counter'] = $this->getConfig()->get( 'DisableCounters' )
-				? ''
-				: intval( $this->pageCounter[$pageid] );
 			$pageInfo['length'] = intval( $this->pageLength[$pageid] );
 
 			if ( isset( $this->pageIsRedir[$pageid] ) && $this->pageIsRedir[$pageid] ) {
@@ -824,38 +818,18 @@ class ApiQueryInfo extends ApiQueryBase {
 				ApiBase::PARAM_ISMULTI => true,
 				ApiBase::PARAM_TYPE => array_keys( $this->getTokenFunctions() )
 			),
-			'continue' => null,
-		);
-	}
-
-	public function getParamDescription() {
-		return array(
-			'prop' => array(
-				'Which additional properties to get:',
-				' protection            - List the protection level of each page',
-				' talkid                - The page ID of the talk page for each non-talk page',
-				' watched               - List the watched status of each page',
-				' watchers              - The number of watchers, if allowed',
-				' notificationtimestamp - The watchlist notification timestamp of each page',
-				' subjectid             - The page ID of the parent page for each talk page',
-				' url                   - Gives a full URL, an edit URL, and the canonical URL for each page',
-				' readable              - Whether the user can read this page',
-				' preload               - Gives the text returned by EditFormPreloadText',
-				' displaytitle          - Gives the way the page title is actually displayed',
+			'continue' => array(
+				ApiBase::PARAM_HELP_MSG => 'api-help-param-continue',
 			),
-			'token' => 'Request a token to perform a data-modifying action on a page',
-			'continue' => 'When more results are available, use this to continue',
 		);
 	}
 
-	public function getDescription() {
-		return 'Get basic page information such as namespace, title, last touched date, ...';
-	}
-
-	public function getExamples() {
+	protected function getExamplesMessages() {
 		return array(
-			'api.php?action=query&prop=info&titles=Main%20Page',
-			'api.php?action=query&prop=info&inprop=protection&titles=Main%20Page'
+			'action=query&prop=info&titles=Main%20Page'
+				=> 'apihelp-query+info-example-simple',
+			'action=query&prop=info&inprop=protection&titles=Main%20Page'
+				=> 'apihelp-query+info-example-protection',
 		);
 	}
 

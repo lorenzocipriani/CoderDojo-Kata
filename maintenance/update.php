@@ -26,7 +26,7 @@
  * @ingroup Maintenance
  */
 
-if ( !function_exists( 'version_compare' ) || ( version_compare( PHP_VERSION, '5.3.2' ) < 0 ) ) {
+if ( !function_exists( 'version_compare' ) || ( version_compare( PHP_VERSION, '5.3.3' ) < 0 ) ) {
 	require dirname( __FILE__ ) . '/../includes/PHPVersionError.php';
 	wfPHPVersionError( 'cli' );
 }
@@ -178,11 +178,12 @@ class UpdateMediaWiki extends Maintenance {
 			}
 		}
 
+		$updater->setFileAccess();
 		if ( !$this->hasOption( 'nopurge' ) ) {
 			$updater->purgeCache();
 		}
-		$time2 = new MWTimestamp();
 
+		$time2 = new MWTimestamp();
 		$timeDiff = $time2->diff( $time1 );
 		$this->output( "\nDone in " . $timeDiff->format( "%i:%S" ) . ".\n" );
 	}

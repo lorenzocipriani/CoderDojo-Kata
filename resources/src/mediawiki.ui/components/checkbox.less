@@ -14,7 +14,13 @@
 //   <input type="checkbox" id="kss-example-5"><label for="kss-example-5">Standard checkbox</label>
 // </div>
 // <div class="mw-ui-checkbox">
-//   <input type="checkbox" id="kss-example-5-2" disabled><label for="kss-example-5-2">Disabled checkbox</label>
+//   <input type="checkbox" id="kss-example-5-checked" checked><label for="kss-example-5-checked">Standard checked checkbox</label>
+// </div>
+// <div class="mw-ui-checkbox">
+//   <input type="checkbox" id="kss-example-5-disabled" disabled><label for="kss-example-5-disabled">Disabled checkbox</label>
+// </div>
+// <div class="mw-ui-checkbox">
+//   <input type="checkbox" id="kss-example-5-disabled-checked" disabled checked><label for="kss-example-5-disabled-checked">Disabled checked checkbox</label>
 // </div>
 //
 // Styleguide 5.
@@ -23,7 +29,7 @@
 	vertical-align: middle;
 }
 
-@checkboxSize: 24px;
+@checkboxSize: 1.6em;
 
 // We use the not selector to cancel out styling on IE 8 and below
 .mw-ui-checkbox:not(#noop) {
@@ -42,23 +48,24 @@
 		// ensure the invisible checkbox takes up the required width
 		width: @checkboxSize;
 		height: @checkboxSize;
+		// This is needed for Firefox mobile (See bug 71750 to workaround default Firefox stylesheet)
+		max-width: none;
+		margin-right: .4em;
 
 		// the pseudo before element of the label after the checkbox now looks like a checkbox
 		& + label {
 			cursor: pointer;
 
 			&::before {
-						content: '';
-						position: absolute;
-						left: 0;
-						display: inline-block;
-						border-radius: @borderRadius;
-						margin-right: 18px;
-						width: @checkboxSize;
-						height: @checkboxSize;
-						background-color: #fff;
-						border: 1px solid grey;
-					}
+				content: '';
+				position: absolute;
+				left: 0;
+				border-radius: @borderRadius;
+				width: @checkboxSize;
+				height: @checkboxSize;
+				background-color: #fff;
+				border: 1px solid grey;
+			}
 		}
 
 		// when the input is checked, style the label pseudo before element that followed as a checked checkbox
@@ -66,24 +73,19 @@
 			+ label {
 				&::before {
 					.background-image-svg('images/checked.svg', 'images/checked.png');
+					.background-size( @checkboxSize, @checkboxSize );
 					background-repeat: no-repeat;
 					background-position: center top;
 				}
 			}
 		}
 
-		@focusBottomBorderSize: 3px;
+		@focusBottomBorderSize: 0.2em;
 		&:active,
 		&:focus {
 			+ label {
-				&::after {
-					content: '';
-					position: absolute;
-					width: @checkboxSize;
-					height: @checkboxSize - @focusBottomBorderSize + 1; // offset by bottom border
-					// offset from the checkbox by 1px to account for left border
-					left: 1px;
-					border-bottom: solid @focusBottomBorderSize lightgrey;
+				&::before {
+					box-shadow: inset 0 -@focusBottomBorderSize 0 0 lightgrey;
 				}
 			}
 		}

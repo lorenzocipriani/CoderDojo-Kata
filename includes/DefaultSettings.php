@@ -71,11 +71,9 @@ $wgConfigRegistry = array(
 
 /**
  * MediaWiki version number
- * Note that MediaWikiVersionFetcher::fetchVersion() uses a regex to check this.
- * Using single quotes is, therefore, important here.
  * @since 1.2
  */
-$wgVersion = '1.24.0-rc.0';
+$wgVersion = '1.25wmf9';
 
 /**
  * Name of the site. It must be changed in LocalSettings.php
@@ -1245,6 +1243,46 @@ $wgThumbnailBuckets = null;
 $wgThumbnailMinimumBucketDistance = 50;
 
 /**
+ * When defined, is an array of thumbnail widths to be rendered at upload time. The idea is to
+ * prerender common thumbnail sizes, in order to avoid the necessity to render them on demand, which
+ * has a performance impact for the first client to view a certain size.
+ *
+ * This obviously means that more disk space is needed per upload upfront.
+ *
+ * @since 1.25
+ */
+
+$wgUploadThumbnailRenderMap = array();
+
+/**
+ * The method through which the thumbnails will be prerendered for the entries in
+ * $wgUploadThumbnailRenderMap
+ *
+ * The method can be either "http" or "jobqueue". The former uses an http request to hit the
+ * thumbnail's URL.
+ * This method only works if thumbnails are configured to be rendered by a 404 handler. The latter
+ * option uses the job queue to render the thumbnail.
+ *
+ * @since 1.25
+ */
+$wgUploadThumbnailRenderMethod = 'jobqueue';
+
+/**
+ * When using the "http" wgUploadThumbnailRenderMethod, lets one specify a custom Host HTTP header.
+ *
+ * @since 1.25
+ */
+$wgUploadThumbnailRenderHttpCustomHost = false;
+
+/**
+ * When using the "http" wgUploadThumbnailRenderMethod, lets one specify a custom domain to send the
+ * HTTP request to.
+ *
+ * @since 1.25
+ */
+$wgUploadThumbnailRenderHttpCustomDomain = false;
+
+/**
  * Default parameters for the "<gallery>" tag
  */
 $wgGalleryOptions = array(
@@ -1345,7 +1383,7 @@ $wgDjvuOutputExtension = 'jpg';
 /**
  * Site admin email address.
  *
- * Defaults to "wikiadmin@{$wgServerName}".
+ * Defaults to "wikiadmin@$wgServerName".
  */
 $wgEmergencyContact = false;
 
@@ -1354,7 +1392,7 @@ $wgEmergencyContact = false;
  *
  * The address we should use as sender when a user is requesting his password.
  *
- * Defaults to "apache@{$wgServerName}".
+ * Defaults to "apache@$wgServerName".
  */
 $wgPasswordSender = false;
 
@@ -1664,6 +1702,9 @@ $wgAllDBsAreLocalhost = false;
  * $wgSharedPrefix is the table prefix for the shared database. It defaults to
  * $wgDBprefix.
  *
+ * $wgSharedSchema is the table schema for the shared database. It defaults to
+ * $wgDBmwschema.
+ *
  * @deprecated since 1.21 In new code, use the $wiki parameter to wfGetLB() to
  *   access remote databases. Using wfGetLB() allows the shared database to
  *   reside on separate servers to the wiki's own database, with suitable
@@ -1680,6 +1721,12 @@ $wgSharedPrefix = false;
  * @see $wgSharedDB
  */
 $wgSharedTables = array( 'user', 'user_properties' );
+
+/**
+ * @see $wgSharedDB
+ * @since 1.23
+ */
+$wgSharedSchema = false;
 
 /**
  * Database load balancer
@@ -1960,15 +2007,6 @@ $wgAllowSlowParserFunctions = false;
 $wgAllowSchemaUpdates = true;
 
 /**
- * Anti-lock flags - bitfield
- *   - ALF_NO_LINK_LOCK:
- *       Don't use locking reads when updating the link table. This is
- *       necessary for wikis with a high edit rate for performance
- *       reasons, but may cause link table inconsistency
- */
-$wgAntiLockFlags = 0;
-
-/**
  * Maximum article size in kilobytes
  */
 $wgMaxArticleSize = 2048;
@@ -2063,7 +2101,7 @@ $wgLanguageConverterCacheType = CACHE_ANYTHING;
  */
 $wgObjectCaches = array(
 	CACHE_NONE => array( 'class' => 'EmptyBagOStuff' ),
-	CACHE_DB => array( 'class' => 'SqlBagOStuff', 'table' => 'objectcache' ),
+	CACHE_DB => array( 'class' => 'SqlBagOStuff' ),
 
 	CACHE_ANYTHING => array( 'factory' => 'ObjectCache::newAnything' ),
 	CACHE_ACCEL => array( 'factory' => 'ObjectCache::newAccelerator' ),
@@ -2686,8 +2724,8 @@ $wgBrowserBlackList = array(
 $wgLegacySchemaConversion = false;
 
 /**
- * Enable dates like 'May 12' instead of '12 May', this only takes effect if
- * the interface is set to English.
+ * Enable dates like 'May 12' instead of '12 May', if the default date format
+ * is 'dmy or mdy'.
  */
 $wgAmericanDates = false;
 
@@ -3050,6 +3088,7 @@ $wgEditPageFrameOptions = 'DENY';
  *   - 'DENY': Do not allow framing. This is recommended for most wikis.
  *   - 'SAMEORIGIN': Allow framing by pages on the same domain.
  *   - false: Allow all framing.
+ * Note: $wgBreakFrames will override this for human formatted API output.
  */
 $wgApiFrameOptions = 'DENY';
 
@@ -3104,8 +3143,7 @@ $wgFooterIcons = array(
 	),
 	"poweredby" => array(
 		"mediawiki" => array(
-		// src defaults to "$wgResourceBasePath/resources/assets/poweredby_mediawiki_88x31.png"
-			"src" => null,
+			"src" => null, // Defaults to "$wgResourceBasePath/resources/assets/poweredby_mediawiki_88x31.png"
 			"url" => "//www.mediawiki.org/",
 			"alt" => "Powered by MediaWiki",
 		)
@@ -3155,6 +3193,14 @@ $wgShowRollbackEditCount = 10;
  * unconditionally.
  */
 $wgEnableCanonicalServerLink = false;
+
+/**
+ * When OutputHandler is used, mangle any output that contains
+ * <cross-domain-policy>. Without this, an attacker can send their own
+ * cross-domain policy unless it is prevented by the crossdomain.xml file at
+ * the domain root.
+ */
+$wgMangleFlashPolicy = true;
 
 /** @} */ # End of output format settings }
 
@@ -3529,6 +3575,19 @@ $wgResourceLoaderStorageEnabled = false;
  */
 $wgResourceLoaderStorageVersion = 1;
 
+/**
+ * Whether to allow site-wide CSS (MediaWiki:Common.css and friends) on
+ * restricted pages like Special:UserLogin or Special:Preferences where
+ * JavaScript is disabled for security reasons. As it is possible to
+ * execute JavaScript through CSS, setting this to true opens up a
+ * potential security hole. Some sites may "skin" their wiki by using
+ * site-wide CSS, causing restricted pages to look unstyled and different
+ * from the rest of the site.
+ *
+ * @since 1.25
+ */
+$wgAllowSiteCSSOnRestrictedPages = false;
+
 /** @} */ # End of resource loader settings }
 
 /*************************************************************************//**
@@ -3769,6 +3828,7 @@ $wgNamespacesWithSubpages = array(
 $wgTrackingCategories = array(
 	'index-category',
 	'noindex-category',
+	'duplicate-args-category',
 	'expensive-parserfunction-category',
 	'post-expand-template-argument-category',
 	'post-expand-template-inclusion-category',
@@ -4088,15 +4148,6 @@ $wgTranscludeCacheExpiry = 3600;
 $wgArticleCountMethod = 'link';
 
 /**
- * wgHitcounterUpdateFreq sets how often page counters should be updated, higher
- * values are easier on the database. A value of 1 causes the counters to be
- * updated on every hit, any higher value n cause them to update *on average*
- * every n hits. Should be set to either 1 or something largish, eg 1000, for
- * maximum efficiency.
- */
-$wgHitcounterUpdateFreq = 1;
-
-/**
  * How many days user must be idle before he is considered inactive. Will affect
  * the number shown on Special:Statistics, Special:ActiveUsers, and the
  * {{NUMBEROFACTIVEUSERS}} magic word in wikitext.
@@ -4246,7 +4297,7 @@ $wgDefaultUserOptions = array(
 	'enotifrevealaddr' => 0,
 	'enotifusertalkpages' => 1,
 	'enotifwatchlistpages' => 1,
-	'extendwatchlist' => 0,
+	'extendwatchlist' => 1,
 	'fancysig' => 0,
 	'forceeditsummary' => 0,
 	'gender' => 'unknown',
@@ -4272,7 +4323,7 @@ $wgDefaultUserOptions = array(
 	'thumbsize' => 5,
 	'underline' => 2,
 	'uselivepreview' => 0,
-	'usenewrc' => 0,
+	'usenewrc' => 1,
 	'watchcreations' => 1,
 	'watchdefault' => 1,
 	'watchdeletion' => 0,
@@ -5187,13 +5238,33 @@ $wgDebugDumpSqlLength = 500;
  *
  * @par Advanced example:
  * @code
- * $wgDebugLogGroups['memcached'] = (
+ * $wgDebugLogGroups['memcached'] = array(
  *     'destination' => '/var/log/mediawiki/memcached.log',
  *     'sample' => 1000,  // log 1 message out of every 1,000.
  * );
  * @endcode
  */
 $wgDebugLogGroups = array();
+
+/**
+ * Default service provider for creating MWLogger instances.
+ *
+ * The value should be an array suitable for use with
+ * ObjectFactory::getObjectFromSpec(). The created object is expected to
+ * implement the MWLoggerSpi interface. See ObjectFactory for additional
+ * details.
+ *
+ * Alternately the MWLogger::registerProvider method can be called to inject
+ * an MWLoggerSpi instance into MWLogger and bypass the use of this
+ * configuration variable entirely.
+ *
+ * @since 1.25
+ * @var array $wgMWLoggerDefaultSpi
+ * @see MwLogger
+ */
+$wgMWLoggerDefaultSpi = array(
+	'class' => 'MWLoggerLegacySpi',
+);
 
 /**
  * Display debug data at the bottom of the main content area.
@@ -5355,12 +5426,6 @@ $wgAggregateStatsID = false;
  * @since 1.22
  */
 $wgStatsFormatString = "stats/%s - %s 1 1 1 1 %s\n";
-
-/**
- * Whereas to count the number of time an article is viewed.
- * Does not work if pages are cached (for example with squid).
- */
-$wgDisableCounters = false;
 
 /**
  * InfoAction retrieves a list of transclusion links (both to and from).
@@ -5689,9 +5754,9 @@ $wgGitRepositoryViewers = array(
 /**
  * Recentchanges items are periodically purged; entries older than this many
  * seconds will go.
- * Default: 13 weeks = about three months
+ * Default: 90 days = about three months
  */
-$wgRCMaxAge = 13 * 7 * 24 * 3600;
+$wgRCMaxAge = 90 * 24 * 3600;
 
 /**
  * Filter $wgRCLinkDays by $wgRCMaxAge to avoid showing links for numbers
@@ -5842,11 +5907,6 @@ $wgAdvertisedFeedTypes = array( 'atom' );
  * Show watching users in recent changes, watchlist and page history views
  */
 $wgRCShowWatchingUsers = false; # UPO
-
-/**
- * Show watching users in Page views
- */
-$wgPageShowWatchingUsers = false;
 
 /**
  * Show the amount of changed characters in recent changes
@@ -6144,6 +6204,7 @@ $wgExtensionMessagesFiles = array();
  */
 $wgMessagesDirs = array(
 	'core' => "$IP/languages/i18n",
+	'api' => "$IP/includes/api/i18n",
 	'oojs-ui' => "$IP/resources/lib/oojs-ui/i18n",
 );
 
@@ -6315,6 +6376,7 @@ $wgJobClasses = array(
 	'uploadFromUrl' => 'UploadFromUrlJob',
 	'AssembleUploadChunks' => 'AssembleUploadChunksJob',
 	'PublishStashedFile' => 'PublishStashedFileJob',
+	'ThumbnailRender' => 'ThumbnailRenderJob',
 	'null' => 'NullJob'
 );
 
@@ -6565,7 +6627,6 @@ $wgLogActions = array(
 	'protect/move_prot' => 'movedarticleprotection',
 	'import/upload' => 'import-logentry-upload',
 	'import/interwiki' => 'import-logentry-interwiki',
-	'merge/merge' => 'pagemerge-logentry',
 	'suppress/block' => 'blocklogentry',
 	'suppress/reblock' => 'reblock-logentry',
 );
@@ -6592,6 +6653,7 @@ $wgLogActionsHandlers = array(
 	'upload/upload' => 'LogFormatter',
 	'upload/overwrite' => 'LogFormatter',
 	'upload/revert' => 'LogFormatter',
+	'merge/merge' => 'MergeLogFormatter',
 );
 
 /**
@@ -7051,6 +7113,18 @@ $wgAsyncHTTPTimeout = 25;
 $wgHTTPProxy = false;
 
 /**
+ * Local virtual hosts.
+ *
+ * This lists domains that are configured as virtual hosts on the same machine.
+ * If a request is to be made to a domain listed here, or any subdomain thereof,
+ * then no proxy will be used.
+ * Command-line scripts are not affected by this setting and will always use
+ * proxy if it is configured.
+ * @since 1.25
+ */
+$wgLocalVirtualHosts = array();
+
+/**
  * Timeout for connections done internally (in seconds)
  * Only works for curl
  */
@@ -7253,13 +7327,21 @@ $wgPagePropsHaveSortkey = true;
 $wgHttpsPort = 443;
 
 /**
- * Secret and algorithm for hmac-based key derivation function (fast,
+ * Secret for hmac-based key derivation function (fast,
  * cryptographically secure random numbers).
  * This should be set in LocalSettings.php, otherwise wgSecretKey will
  * be used.
+ * See also: $wgHKDFAlgorithm
  * @since 1.24
  */
 $wgHKDFSecret = false;
+
+/**
+ * Algorithm for hmac-based key derivation function (fast,
+ * cryptographically secure random numbers).
+ * See also: $wgHKDFSecret
+ * @since 1.24
+ */
 $wgHKDFAlgorithm = 'sha256';
 
 /**

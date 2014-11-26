@@ -426,15 +426,18 @@ class SpecialSearch extends SpecialPage {
 			return;
 		}
 
+		$messageName = 'searchmenu-new-nocreate';
 		$linkClass = 'mw-search-createlink';
-		if ( $title->isKnown() ) {
-			$messageName = 'searchmenu-exists';
-			$linkClass = 'mw-search-exists';
-		} elseif ( $title->quickUserCan( 'create', $this->getUser() ) ) {
-			$messageName = 'searchmenu-new';
-		} else {
-			$messageName = 'searchmenu-new-nocreate';
+
+		if ( !$title->isExternal() ) {
+			if ( $title->isKnown() ) {
+				$messageName = 'searchmenu-exists';
+				$linkClass = 'mw-search-exists';
+			} elseif ( $title->quickUserCan( 'create', $this->getUser() ) ) {
+				$messageName = 'searchmenu-new';
+			}
 		}
+
 		$params = array(
 			$messageName,
 			wfEscapeWikiText( $title->getPrefixedText() ),
@@ -583,7 +586,7 @@ class SpecialSearch extends SpecialPage {
 
 		$title = $result->getTitle();
 
-		$titleSnippet = $result->getTitleSnippet( $terms );
+		$titleSnippet = $result->getTitleSnippet();
 
 		if ( $titleSnippet == '' ) {
 			$titleSnippet = null;
@@ -615,11 +618,12 @@ class SpecialSearch extends SpecialPage {
 
 		// format redirects / relevant sections
 		$redirectTitle = $result->getRedirectTitle();
-		$redirectText = $result->getRedirectSnippet( $terms );
+		$redirectText = $result->getRedirectSnippet();
 		$sectionTitle = $result->getSectionTitle();
-		$sectionText = $result->getSectionSnippet( $terms );
-		$redirect = '';
+		$sectionText = $result->getSectionSnippet();
+		$categorySnippet = $result->getCategorySnippet();
 
+		$redirect = '';
 		if ( !is_null( $redirectTitle ) ) {
 			if ( $redirectText == '' ) {
 				$redirectText = null;
@@ -632,7 +636,6 @@ class SpecialSearch extends SpecialPage {
 		}
 
 		$section = '';
-
 		if ( !is_null( $sectionTitle ) ) {
 			if ( $sectionText == '' ) {
 				$sectionText = null;
@@ -641,6 +644,13 @@ class SpecialSearch extends SpecialPage {
 			$section = "<span class='searchalttitle'>" .
 				$this->msg( 'search-section' )->rawParams(
 					Linker::linkKnown( $sectionTitle, $sectionText ) )->text() .
+				"</span>";
+		}
+
+		$category = '';
+		if ( $categorySnippet ) {
+			$category = "<span class='searchalttitle'>" .
+				$this->msg( 'search-category' )->rawParams( $categorySnippet )->text() .
 				"</span>";
 		}
 
@@ -688,7 +698,7 @@ class SpecialSearch extends SpecialPage {
 						$thumb->toHtml( array( 'desc-link' => true ) ) .
 						'</td>' .
 						'<td style="vertical-align: top;">' .
-						"{$link} {$redirect} {$section} {$fileMatch}" .
+						"{$link} {$redirect} {$category} {$section} {$fileMatch}" .
 						$extract .
 						"<div class='mw-search-result-data'>{$desc} - {$date}</div>" .
 						'</td>' .
@@ -709,7 +719,7 @@ class SpecialSearch extends SpecialPage {
 			&$html
 		) ) ) {
 			$html = "<li><div class='mw-search-result-heading'>" .
-				"{$link} {$redirect} {$section} {$fileMatch}</div> {$extract}\n" .
+				"{$link} {$redirect} {$category} {$section} {$fileMatch}</div> {$extract}\n" .
 				"<div class='mw-search-result-data'>{$size} - {$date}</div>" .
 				"</li>\n";
 		}
@@ -885,10 +895,7 @@ class SpecialSearch extends SpecialPage {
 		// be arranged nicely while still accommodating different screen widths
 		$namespaceTables = '';
 		for ( $i = 0; $i < $numRows; $i += 4 ) {
-			$namespaceTables .= Xml::openElement(
-				'table',
-				array( 'cellpadding' => 0, 'cellspacing' => 0 )
-			);
+			$namespaceTables .= Xml::openElement( 'table' );
 
 			for ( $j = $i; $j < $i + 4 && $j < $numRows; $j++ ) {
 				$namespaceTables .= Xml::tags( 'tr', null, $rows[$j] );
@@ -1060,9 +1067,10 @@ class SpecialSearch extends SpecialPage {
 			'class' => 'mw-ui-input mw-ui-input-inline',
 		) ) . "\n";
 		$out .= Html::hidden( 'fulltext', 'Search' ) . "\n";
-		$out .= Xml::submitButton(
+		$out .= Html::submitButton(
 			$this->msg( 'searchbutton' )->text(),
-			array( 'class' => array( 'mw-ui-button', 'mw-ui-progressive' ) )
+			array( 'class' => 'mw-ui-button mw-ui-progressive' ),
+			array( 'mw-ui-progressive' )
 		) . "\n";
 
 		// Results-info

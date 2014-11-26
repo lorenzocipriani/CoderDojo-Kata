@@ -70,6 +70,10 @@ abstract class ApiQueryBase extends ApiBase {
 	/**
 	 * Override this method to request extra fields from the pageSet
 	 * using $pageSet->requestField('fieldName')
+	 *
+	 * Note this only makes sense for 'prop' modules, as 'list' and 'meta'
+	 * modules should not be using the pageset.
+	 *
 	 * @param ApiPageSet $pageSet
 	 */
 	public function requestExtraData( $pageSet ) {
@@ -88,6 +92,13 @@ abstract class ApiQueryBase extends ApiBase {
 	 */
 	public function getQuery() {
 		return $this->mQueryModule;
+	}
+
+	/**
+	 * @see ApiBase::getParent()
+	 */
+	public function getParent() {
+		return $this->getQuery();
 	}
 
 	/**
@@ -709,6 +720,17 @@ abstract class ApiQueryGeneratorBase extends ApiQueryBase {
 		} else {
 			parent::setContinueEnumParameter( $paramName, $paramValue );
 		}
+	}
+
+	/**
+	 * @see ApiBase::getHelpFlags()
+	 *
+	 * Corresponding messages: api-help-flag-generator
+	 */
+	protected function getHelpFlags() {
+		$flags = parent::getHelpFlags();
+		$flags[] = 'generator';
+		return $flags;
 	}
 
 	/**

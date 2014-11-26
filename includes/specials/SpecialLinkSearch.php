@@ -88,7 +88,7 @@ class LinkSearchPage extends QueryPage {
 
 		$request = $this->getRequest();
 		$target = $request->getVal( 'target', $par );
-		$namespace = $request->getIntorNull( 'namespace', null );
+		$namespace = $request->getIntOrNull( 'namespace', null );
 
 		$protocols_list = array();
 		foreach ( $this->getConfig()->get( 'UrlProtocols' ) as $prot ) {
@@ -252,6 +252,25 @@ class LinkSearchPage extends QueryPage {
 	}
 
 	/**
+	 * Pre-fill the link cache
+	 *
+	 * @param DatabaseBase $db
+	 * @param ResultWrapper $res
+	 */
+	function preprocessResults( $db, $res ) {
+		if ( $res->numRows() > 0 ) {
+			$linkBatch = new LinkBatch();
+
+			foreach ( $res as $row ) {
+				$linkBatch->add( $row->namespace, $row->title );
+			}
+
+			$res->seek( 0 );
+			$linkBatch->execute();
+		}
+	}
+
+	/**
 	 * @param Skin $skin
 	 * @param object $result Result row
 	 * @return string
@@ -264,24 +283,6 @@ class LinkSearchPage extends QueryPage {
 		$urlLink = Linker::makeExternalLink( $url, $url );
 
 		return $this->msg( 'linksearch-line' )->rawParams( $urlLink, $pageLink )->escaped();
-	}
-
-	/**
-	 * Override to check query validity.
-	 *
-	 * @param mixed $offset Numerical offset or false for no offset
-	 * @param mixed $limit Numerical limit or false for no limit
-	 */
-	function doQuery( $offset = false, $limit = false ) {
-		list( $this->mMungedQuery, ) = LinkSearchPage::mungeQuery( $this->mQuery, $this->mProt );
-		if ( $this->mMungedQuery === false ) {
-			$this->getOutput()->addWikiMsg( 'linksearch-error' );
-		} else {
-			// For debugging
-			// Generates invalid xhtml with patterns that contain --
-			//$this->getOutput()->addHTML( "\n<!-- " . htmlspecialchars( $this->mMungedQuery ) . " -->\n" );
-			parent::doQuery( $offset, $limit );
-		}
 	}
 
 	/**

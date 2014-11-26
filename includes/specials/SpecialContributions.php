@@ -478,17 +478,14 @@ class SpecialContributions extends IncludableSpecialPage {
 		if ( $tagFilter ) {
 			$filterSelection = Html::rawElement(
 				'td',
-				array( 'class' => 'mw-label' ),
-				array_shift( $tagFilter )
-			);
-			$filterSelection .= Html::rawElement(
-				'td',
-				array( 'class' => 'mw-input' ),
-				implode( '&#160', $tagFilter )
+				array(),
+				array_shift( $tagFilter ) . implode( '&#160', $tagFilter )
 			);
 		} else {
 			$filterSelection = Html::rawElement( 'td', array( 'colspan' => 2 ), '' );
 		}
+
+		$this->getOutput()->addModules( 'mediawiki.userSuggest' );
 
 		$labelNewbies = Xml::radioLabel(
 			$this->msg( 'sp-contributions-newbies' )->text(),
@@ -510,9 +507,15 @@ class SpecialContributions extends IncludableSpecialPage {
 			'target',
 			$this->opts['target'],
 			'text',
-			array( 'size' => '40', 'required' => '', 'class' => 'mw-input' ) +
-				( $this->opts['target'] ? array() : array( 'autofocus' )
-				)
+			array(
+				'size' => '40',
+				'required' => '',
+				'class' => array(
+					'mw-input',
+					'mw-ui-input-inline',
+					'mw-autocomplete-user', // used by mediawiki.userSuggest
+				),
+			) + ( $this->opts['target'] ? array() : array( 'autofocus' ) )
 		);
 		$targetSelection = Html::rawElement(
 			'td',
@@ -522,16 +525,12 @@ class SpecialContributions extends IncludableSpecialPage {
 
 		$namespaceSelection = Xml::tags(
 			'td',
-			array( 'class' => 'mw-label' ),
+			array(),
 			Xml::label(
 				$this->msg( 'namespace' )->text(),
 				'namespace',
 				''
-			)
-		);
-		$namespaceSelection .= Html::rawElement(
-			'td',
-			null,
+			) .
 			Html::namespaceSelector(
 				array( 'selected' => $this->opts['namespace'], 'all' => '' ),
 				array(
@@ -617,9 +616,9 @@ class SpecialContributions extends IncludableSpecialPage {
 				$this->opts['year'] === '' ? MWTimestamp::getInstance()->format( 'Y' ) : $this->opts['year'],
 				$this->opts['month']
 			) . ' ' .
-				Xml::submitButton(
+				Html::submitButton(
 					$this->msg( 'sp-contributions-submit' )->text(),
-					array( 'class' => 'mw-submit' )
+					array( 'class' => 'mw-submit' ), array( 'mw-ui-progressive' )
 				)
 		);
 

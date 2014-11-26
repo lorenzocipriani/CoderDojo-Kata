@@ -6,7 +6,8 @@
 			"Katimawan2005",
 			"Urhixidur",
 			"Val2397",
-			"아라"
+			"아라",
+			"Leeheonjin"
 		]
 	},
 	"tog-underline": "Gulisan lang panglalam deng suglung:",
@@ -515,7 +516,6 @@
 	"mergehistory-autocomment": "Pisamut ing [[:$1]] keng  [[:$2]]",
 	"mergehistory-comment": "Misanib ya ing [[:$1]] king [[:$2]]: $3",
 	"mergelog": "Piyabe ing log",
-	"pagemerge-logentry": "misanib ya ing [[$1]] king [[$2]] (deng pamagbayu angga king $3)",
 	"revertmerge": "Episamut",
 	"mergelogpagetext": "Makabili la king lalam deng pekabayung pamisanib da reng amlat bulung (page history).",
 	"history-title": "↓Amlat ning pamagbayu king \"$1\"",
@@ -544,6 +544,7 @@
 	"search-result-size": "$1 ({{PLURAL:$2|1 a kataya|$2 kataya}})",
 	"search-redirect": "(pamanalis direksiun $1)",
 	"search-section": "(seksion $1)",
+	"search-category": "(kategorya $1)",
 	"search-suggest": "Ing buri mung sabian: $1",
 	"search-interwiki-caption": "Kapatad a proyektu",
 	"search-interwiki-default": "$1 linual/resulta:",
@@ -847,7 +848,6 @@
 	"randomredirect-nopages": "Alang pamanalis direksiun (redirect) king pirinan lagyung (namespace) ini.",
 	"statistics": "Deng datos (Statistics)",
 	"statistics-header-users": "Talagamit statistics",
-	"statistics-mostpopular": "Bulung a pekamaralas dang linawe",
 	"doubleredirects": "Dobling pamanaliling direksiun",
 	"doubleredirectstext": "Pakalista la king bulung a ini deng bulung a makayalis direksiun (redirect) kareng aliwang bulung pamanalis direksiun. Atin yang suglung ing balang dane (row) king mumuna ampong kaduang pamanalis direksiun, ampo king tuturu (target) ning kaduang pamanalis direksiun, a keraklan ya ing \"tagana\" o \"tutung\" bulung a tuturu, nung nu ya dapat tambing makaturu ing mumunang pamanalis direksiun.",
 	"brokenredirects": "Meputut a pamanaliling direksiun",
@@ -874,7 +874,6 @@
 	"uncategorizedtemplates": "Modelung (template) alang kategoriya",
 	"unusedcategories": "Kategoriyang e megamit",
 	"unusedimages": "Simpan a e megamit",
-	"popularpages": "Sikat a bulung",
 	"wantedcategories": "Kategoriyang paintunan (wanted)",
 	"wantedpages": "Bulung a kailangan (wanted pages)",
 	"mostlinked": "Dakal dili suglung kareng bulung",
@@ -908,7 +907,6 @@
 	"suppress": "Alakton (oversight)",
 	"booksources": "Aklat a pikuanan",
 	"booksources-search-legend": "Panintunan la reng aklat penibatan",
-	"booksources-go": "Sige",
 	"booksources-text": "Makabili la king lalam deng suglung kareng aliwang karinan o site a mamisaling librung bayu at megamit na, at mapalyaring atin la muring aliwang informaciun kareng librung paintunan mu.",
 	"specialloguserlabel": "Talagamit:",
 	"speciallogtitlelabel": "Bansag:",
@@ -979,7 +977,7 @@
 	"wlheader-enotif": "Makasalangi (enabled) ing pamipabalu kapamilatan ning e-mail.",
 	"wlheader-showupdated": "'''Makapal''' la pangasulat deng bulung a miyalilan manibat aniang tauli mu lang pintalan.",
 	"wlnote": "{{PLURAL:$1|Ing makatuki ing tauling|Ding makatuki ring tauling '''$1''' miyalilan}} kilub {{PLURAL:$2|ning tauling metung a oras|ding tauling '''$2''' oras}}.",
-	"wlshowlast": "Pakit la reng tauling $1 oras $2 aldo $3",
+	"wlshowlast": "Pakit la reng tauling $1 oras $2 aldo",
 	"watchlist-options": "Deng maliaring gawan kareng listaan da reng babanten (''watchlist'')",
 	"watching": "Babanten...",
 	"unwatching": "E ne babanten...",
@@ -1563,7 +1561,6 @@
 	"exif-gpsspeed-k": "Kilometru balang oras",
 	"exif-gpsspeed-m": "Milla balang oras",
 	"exif-gpsdirection-t": "Tutung direksiun",
-	"watchlistall2": "eganagana",
 	"namespacesall": "ila ngan",
 	"monthsall": "eganagana",
 	"confirmemail": "Patutwan mung keka ya itang e-mail address",
@@ -1632,5 +1629,6 @@
 	"specialpages-group-highuse": "Deng bulung a magamitan",
 	"revdelete-restricted": "ipairal la reng limitasiun kareng sysop",
 	"revdelete-unrestricted": "ilako la reng makabawal kareng sysops",
-	"rightsnone": "(ala)"
+	"rightsnone": "(ala)",
+	"revdelete-summary": "sampulung da reng mibayu (edit summary)"
 }

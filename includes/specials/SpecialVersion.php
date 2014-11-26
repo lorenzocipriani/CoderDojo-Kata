@@ -191,8 +191,8 @@ class SpecialVersion extends SpecialPage {
 			'Alexandre Emsenhuber', 'Siebrand Mazeland', 'Chad Horohoe',
 			'Roan Kattouw', 'Trevor Parscal', 'Bryan Tong Minh', 'Sam Reed',
 			'Victor Vasiliev', 'Rotem Liss', 'Platonides', 'Antoine Musso',
-			'Timo Tijhof', 'Daniel Kinzler', 'Jeroen De Dauw', $othersLink,
-			$translatorsLink
+			'Timo Tijhof', 'Daniel Kinzler', 'Jeroen De Dauw', 'Brad Jorsch',
+			$othersLink, $translatorsLink
 		);
 
 		return wfMessage( 'version-poweredby-credits', MWTimestamp::getLocalInstance()->format( 'Y' ),
@@ -525,8 +525,17 @@ class SpecialVersion extends SpecialPage {
 			);
 
 			array_walk( $tags, function ( &$value ) {
-				$value = '&lt;' . htmlspecialchars( $value ) . '&gt;';
+				// Bidirectional isolation improves readability in RTL wikis
+				$value = Html::element(
+					'bdi',
+					// Prevent < and > from slipping to another line
+					array(
+						'style' => 'white-space: nowrap;',
+					),
+					"<$value>"
+				);
 			} );
+
 			$out .= $this->listToText( $tags );
 		} else {
 			$out = '';
@@ -743,13 +752,19 @@ class SpecialVersion extends SpecialPage {
 			$licenseLink = Linker::link(
 				$this->getPageTitle( 'License/' . $extensionName ),
 				$out->parseInline( $extension['license-name'] ),
-				array( 'class' => 'mw-version-ext-license' )
+				array(
+					'class' => 'mw-version-ext-license',
+					'dir' => 'auto',
+				)
 			);
 		} elseif ( $this->getExtLicenseFileName( $extensionPath ) ) {
 			$licenseLink = Linker::link(
 				$this->getPageTitle( 'License/' . $extensionName ),
 				$this->msg( 'version-ext-license' ),
-				array( 'class' => 'mw-version-ext-license' )
+				array(
+					'class' => 'mw-version-ext-license',
+					'dir' => 'auto',
+				)
 			);
 		}
 
@@ -793,7 +808,7 @@ class SpecialVersion extends SpecialPage {
 		$html .= Html::rawElement( 'td', array( 'class' => 'mw-version-ext-description' ), $description );
 		$html .= Html::rawElement( 'td', array( 'class' => 'mw-version-ext-authors' ), $authors );
 
-		$html .= Html::closeElement( 'td' );
+		$html .= Html::closeElement( 'tr' );
 
 		return $html;
 	}
@@ -1188,7 +1203,7 @@ class SpecialVersion extends SpecialPage {
 		$language = $this->getLanguage();
 		$thAttribures = array(
 			'dir' => $language->getDir(),
-			'lang' => $language->getCode()
+			'lang' => $language->getHtmlCode()
 		);
 		$out = Html::element(
 				'h2',

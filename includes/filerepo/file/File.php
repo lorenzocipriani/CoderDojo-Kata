@@ -471,6 +471,8 @@ abstract class File {
 	public function getThumbnailBucket( $desiredWidth, $page = 1 ) {
 		global $wgThumbnailBuckets, $wgThumbnailMinimumBucketDistance;
 
+		wfDebugLog( 'thumbnail', 'thumbnail buckets ' . json_encode( $wgThumbnailBuckets ) );
+
 		$imageWidth = $this->getWidth( $page );
 
 		if ( $imageWidth === false ) {
@@ -1237,7 +1239,7 @@ abstract class File {
 			$that = $this;
 			$work = new PoolCounterWorkViaCallback( 'GetLocalFileCopy', sha1( $this->getName() ),
 				array(
-					'doWork' => function() use ( $that ) {
+					'doWork' => function () use ( $that ) {
 						return $that->getLocalRefPath();
 					}
 				)

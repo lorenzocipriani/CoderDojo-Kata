@@ -1303,9 +1303,11 @@ class LocalFile extends File {
 		);
 		if ( $dbw->affectedRows() == 0 ) {
 			if ( $allowTimeKludge ) {
-				# Use FOR UPDATE to ignore any transaction snapshotting
+				# Use LOCK IN SHARE MODE to ignore any transaction snapshotting
 				$ltimestamp = $dbw->selectField( 'image', 'img_timestamp',
-					array( 'img_name' => $this->getName() ), __METHOD__, array( 'FOR UPDATE' ) );
+					array( 'img_name' => $this->getName() ),
+					__METHOD__,
+					array( 'LOCK IN SHARE MODE' ) );
 				$lUnixtime = $ltimestamp ? wfTimestamp( TS_UNIX, $ltimestamp ) : false;
 				# Avoid a timestamp that is not newer than the last version
 				# TODO: the image/oldimage tables should be like page/revision with an ID field
@@ -1850,7 +1852,7 @@ class LocalFile extends File {
 	 * Start a transaction and lock the image for update
 	 * Increments a reference counter if the lock is already held
 	 * @throws MWException Throws an error if the lock was not acquired
-	 * @return bool Success
+	 * @return bool Whether the file lock owns/spawned the DB transaction
 	 */
 	function lock() {
 		$dbw = $this->repo->getMasterDB();
@@ -1877,7 +1879,7 @@ class LocalFile extends File {
 
 		$this->markVolatile(); // file may change soon
 
-		return true;
+		return $this->lockedOwnTrx;
 	}
 
 	/**
@@ -2419,13 +2421,19 @@ class LocalFileRestoreBatch {
 			return $this->file->repo->newGood();
 		}
 
-		$this->file->lock();
+		$lockOwnsTrx = $this->file->lock();
 
 		$dbw = $this->file->repo->getMasterDB();
 		$status = $this->file->repo->newGood();
 
 		$exists = (bool)$dbw->selectField( 'image', '1',
-			array( 'img_name' => $this->file->getName() ), __METHOD__, array( 'FOR UPDATE' ) );
+			array( 'img_name' => $this->file->getName() ),
+			__METHOD__,
+			// The lock() should already prevents changes, but this still may need
+			// to bypass any transaction snapshot. However, if lock() started the
+			// trx (which it probably did) then snapshot is post-lock and up-to-date.
+			$lockOwnsTrx ? array() : array( 'LOCK IN SHARE MODE' )
+		);
 
 		// Fetch all or selected archived revisions for the file,
 		// sorted from the most recent to the oldest.
@@ -2797,7 +2805,7 @@ class LocalFileMoveBatch {
 			array( 'oi_archive_name', 'oi_deleted' ),
 			array( 'oi_name' => $this->oldName ),
 			__METHOD__,
-			array( 'FOR UPDATE' ) // ignore snapshot
+			array( 'LOCK IN SHARE MODE' ) // ignore snapshot
 		);
 
 		foreach ( $result as $row ) {

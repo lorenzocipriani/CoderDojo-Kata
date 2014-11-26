@@ -121,7 +121,7 @@ class MediaWiki {
 	 * @return Title
 	 */
 	public function getTitle() {
-		if ( $this->context->getTitle() === null ) {
+		if ( !$this->context->hasTitle() ) {
 			$this->context->setTitle( $this->parseTitle() );
 		}
 		return $this->context->getTitle();
@@ -446,7 +446,7 @@ class MediaWiki {
 			$this->triggerJobs();
 			$this->restInPeace();
 		} catch ( Exception $e ) {
-			MWExceptionHandler::handle( $e );
+			MWExceptionHandler::handleException( $e );
 		}
 	}
 

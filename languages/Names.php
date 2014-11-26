@@ -41,6 +41,7 @@
 	'aa' => 'Qafár af',	# Afar
 	'ab' => 'Аҧсшәа',	# Abkhaz
 	'ace' => 'Acèh',	# Aceh
+	'aeb' => 'زَوُن',	# Tunisian Arabic
 	'af' => 'Afrikaans',	# Afrikaans
 	'ak' => 'Akan',		# Akan
 	'aln' => 'Gegë',	# Gheg Albanian
@@ -85,6 +86,7 @@
 	'br' => 'brezhoneg',	# Breton
 	'brh' => 'Bráhuí',	# Brahui
 	'bs' => 'bosanski',		# Bosnian
+	'bto' => 'Iriga Bicolano',	# Rinconada Bikol
 	'bug' => 'ᨅᨔ ᨕᨘᨁᨗ',	# Buginese
 	'bxr' => 'буряад',	# Buryat (Russia)
 	'ca' => 'català',	# Catalan
@@ -322,11 +324,11 @@
 	'rmy' => 'Romani',	# Vlax Romany
 	'rn' => 'Kirundi',		# Rundi/Kirundi/Urundi
 	'ro' => 'română',	# Romanian
-	'roa-rup' => 'Armãneashce', # Aromanian (deprecated code, 'rup' exists in ISO 693-3)
+	'roa-rup' => 'armãneashti', # Aromanian (deprecated code, 'rup' exists in ISO 693-3)
 	'roa-tara' => 'tarandíne',	# Tarantino
 	'ru' => 'русский',	# Russian
 	'rue' => 'русиньскый',	# Rusyn
-	'rup' => 'Armãneashce', # Aromanian
+	'rup' => 'armãneashti', # Aromanian
 	'ruq' => 'Vlăheşte',	# Megleno-Romanian (multiple scripts - defaults to Latin)
 	'ruq-cyrl' => 'Влахесте',	# Megleno-Romanian (Cyrillic script)
 	# 'ruq-grek' => 'Βλαεστε',	# Megleno-Romanian (Greek script)
@@ -342,6 +344,7 @@
 	'sdc' => 'Sassaresu',	# Sassarese
 	'se' => 'sámegiella',	# Northern Sami
 	'sei' => 'Cmique Itom',	# Seri
+	'ses' => 'Koyraboro Senni',	# Koyraboro Senni
 	'sg' => 'Sängö',		# Sango/Sangho
 	'sgs' => 'žemaitėška', # Samogitian
 	'sh' => 'srpskohrvatski / српскохрватски', # Serbocroatian

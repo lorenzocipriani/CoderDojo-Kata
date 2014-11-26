@@ -89,11 +89,6 @@ class WikiPage implements Page, IDBAccessObject {
 	protected $mLinksUpdated = '19700101000000';
 
 	/**
-	 * @var int|null
-	 */
-	protected $mCounter = null;
-
-	/**
 	 * Constructor and clear the article
 	 * @param Title $title Reference to a Title object.
 	 */
@@ -247,7 +242,6 @@ class WikiPage implements Page, IDBAccessObject {
 	 */
 	protected function clearCacheFields() {
 		$this->mId = null;
-		$this->mCounter = null;
 		$this->mRedirectTarget = null; // Title object if set
 		$this->mLastRevision = null; // Latest revision
 		$this->mTouched = '19700101000000';
@@ -284,7 +278,6 @@ class WikiPage implements Page, IDBAccessObject {
 			'page_namespace',
 			'page_title',
 			'page_restrictions',
-			'page_counter',
 			'page_is_redirect',
 			'page_is_new',
 			'page_random',
@@ -352,8 +345,7 @@ class WikiPage implements Page, IDBAccessObject {
 	}
 
 	/**
-	 * Set the general counter, title etc data loaded from
-	 * some source.
+	 * Load the object from a given source by title
 	 *
 	 * @param object|string|int $from One of the following:
 	 *   - A DB query result object.
@@ -419,7 +411,6 @@ class WikiPage implements Page, IDBAccessObject {
 			$this->mTitle->loadRestrictions( $data->page_restrictions );
 
 			$this->mId = intval( $data->page_id );
-			$this->mCounter = intval( $data->page_counter );
 			$this->mTouched = wfTimestamp( TS_MW, $data->page_touched );
 			$this->mLinksUpdated = wfTimestampOrNull( TS_MW, $data->page_links_updated );
 			$this->mIsRedirect = intval( $data->page_is_redirect );
@@ -474,17 +465,6 @@ class WikiPage implements Page, IDBAccessObject {
 	 */
 	public function hasViewableContent() {
 		return $this->exists() || $this->mTitle->isAlwaysKnown();
-	}
-
-	/**
-	 * @return int The view count for the page
-	 */
-	public function getCount() {
-		if ( !$this->mDataLoaded ) {
-			$this->loadPageData();
-		}
-
-		return $this->mCounter;
 	}
 
 	/**
@@ -1183,15 +1163,8 @@ class WikiPage implements Page, IDBAccessObject {
 	 * @param int $oldid The revision id being viewed. If not given or 0, latest revision is assumed.
 	 */
 	public function doViewUpdates( User $user, $oldid = 0 ) {
-		global $wgDisableCounters;
 		if ( wfReadOnly() ) {
 			return;
-		}
-
-		// Don't update page view counters on views from bot users (bug 14044)
-		if ( !$wgDisableCounters && !$user->isAllowed( 'bot' ) && $this->exists() ) {
-			DeferredUpdates::addUpdate( new ViewCountUpdate( $this->getId() ) );
-			DeferredUpdates::addUpdate( new SiteStatsUpdate( 1, 0, 0 ) );
 		}
 
 		// Update newtalk / watchlist notification status
@@ -1262,7 +1235,6 @@ class WikiPage implements Page, IDBAccessObject {
 			'page_id'           => $page_id,
 			'page_namespace'    => $this->mTitle->getNamespace(),
 			'page_title'        => $this->mTitle->getDBkey(),
-			'page_counter'      => 0,
 			'page_restrictions' => '',
 			'page_is_redirect'  => 0, // Will set this shortly...
 			'page_is_new'       => 1,
@@ -2168,6 +2140,7 @@ class WikiPage implements Page, IDBAccessObject {
 	 * @param array $options Array of options, following indexes are used:
 	 * - changed: boolean, whether the revision changed the content (default true)
 	 * - created: boolean, whether the revision created the page (default false)
+	 * - moved: boolean, whether the page was moved (default false)
 	 * - oldcountable: boolean or null (default null):
 	 *   - boolean: whether the page was counted as an article before that
 	 *     revision, only used in changed is true and created is false
@@ -2178,7 +2151,12 @@ class WikiPage implements Page, IDBAccessObject {
 
 		wfProfileIn( __METHOD__ );
 
-		$options += array( 'changed' => true, 'created' => false, 'oldcountable' => null );
+		$options += array(
+			'changed' => true,
+			'created' => false,
+			'moved' => false,
+			'oldcountable' => null
+		);
 		$content = $revision->getContent();
 
 		// Parse the text
@@ -2227,7 +2205,7 @@ class WikiPage implements Page, IDBAccessObject {
 		$title = $this->mTitle->getPrefixedDBkey();
 		$shortTitle = $this->mTitle->getDBkey();
 
-		if ( !$options['changed'] ) {
+		if ( !$options['changed'] && !$options['moved'] ) {
 			$good = 0;
 		} elseif ( $options['created'] ) {
 			$good = (int)$this->isCountable( $editInfo );

@@ -35,22 +35,32 @@ class ResourceLoader {
 	/** @var bool */
 	protected static $debugMode = null;
 
-	/** @var array Module name/ResourceLoaderModule object pairs */
+	/**
+	 * Module name/ResourceLoaderModule object pairs
+	 * @var array
+	 */
 	protected $modules = array();
 
-	/** @var array Associative array mapping module name to info associative array */
+	/**
+	 * Associative array mapping module name to info associative array
+	 * @var array
+	 */
 	protected $moduleInfos = array();
 
 	/** @var Config $config */
 	private $config;
 
 	/**
-	 * @var array Associative array mapping framework ids to a list of names of test suite modules
-	 *      like array( 'qunit' => array( 'mediawiki.tests.qunit.suites', 'ext.foo.tests', .. ), .. )
+	 * Associative array mapping framework ids to a list of names of test suite modules
+	 * like array( 'qunit' => array( 'mediawiki.tests.qunit.suites', 'ext.foo.tests', .. ), .. )
+	 * @var array
 	 */
 	protected $testModuleNames = array();
 
-	/** @var array E.g. array( 'source-id' => 'http://.../load.php' ) */
+	/**
+	 * E.g. array( 'source-id' => 'http://.../load.php' )
+	 * @var array
+	 */
 	protected $sources = array();
 
 	/** @var bool */
@@ -964,12 +974,20 @@ class ResourceLoader {
 					case 'messages':
 						$out .= self::makeMessageSetScript( new XmlJsCode( $messagesBlob ) );
 						break;
+					case 'templates':
+						$out .= Xml::encodeJsCall(
+							'mw.templates.set',
+							array( $name, (object)$module->getTemplates() ),
+							ResourceLoader::inDebugMode()
+						);
+						break;
 					default:
 						$out .= self::makeLoaderImplementScript(
 							$name,
 							$scripts,
 							$styles,
-							new XmlJsCode( $messagesBlob )
+							new XmlJsCode( $messagesBlob ),
+							$module->getTemplates()
 						);
 						break;
 				}
@@ -1034,15 +1052,20 @@ class ResourceLoader {
 	 * @param mixed $messages List of messages associated with this module. May either be an
 	 *   associative array mapping message key to value, or a JSON-encoded message blob containing
 	 *   the same data, wrapped in an XmlJsCode object.
+	 * @param array $templates Keys are name of templates and values are the source of
+	 *   the template.
 	 * @throws MWException
 	 * @return string
 	 */
-	public static function makeLoaderImplementScript( $name, $scripts, $styles, $messages ) {
+	public static function makeLoaderImplementScript( $name, $scripts, $styles,
+		$messages, $templates
+	) {
 		if ( is_string( $scripts ) ) {
 			$scripts = new XmlJsCode( "function ( $, jQuery ) {\n{$scripts}\n}" );
 		} elseif ( !is_array( $scripts ) ) {
 			throw new MWException( 'Invalid scripts error. Array of URLs or string of code expected.' );
 		}
+
 		return Xml::encodeJsCall(
 			'mw.loader.implement',
 			array(
@@ -1054,7 +1077,8 @@ class ResourceLoader {
 				// PHP/json_encode() consider empty arrays to be numerical arrays and
 				// output javascript "[]" instead of "{}". This fixes that.
 				(object)$styles,
-				(object)$messages
+				(object)$messages,
+				(object)$templates,
 			),
 			ResourceLoader::inDebugMode()
 		);

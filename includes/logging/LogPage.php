@@ -371,26 +371,6 @@ class LogPage {
 		}
 
 		switch ( $type ) {
-			case 'move':
-				$titleLink = Linker::link(
-					$title,
-					htmlspecialchars( $title->getPrefixedText() ),
-					array(),
-					array( 'redirect' => 'no' )
-				);
-
-				$targetTitle = Title::newFromText( $params[0] );
-
-				if ( !$targetTitle ) {
-					# Workaround for broken database
-					$params[0] = htmlspecialchars( $params[0] );
-				} else {
-					$params[0] = Linker::link(
-						$targetTitle,
-						htmlspecialchars( $params[0] )
-					);
-				}
-				break;
 			case 'block':
 				if ( substr( $title->getText(), 0, 1 ) == '#' ) {
 					$titleLink = $title->getText();
@@ -401,19 +381,6 @@ class LogPage {
 					$titleLink = Linker::userLink( $id, $title->getText() )
 						. Linker::userToolLinks( $id, $title->getText(), false, Linker::TOOL_LINKS_NOBLOCK );
 				}
-				break;
-			case 'merge':
-				$titleLink = Linker::link(
-					$title,
-					$title->getPrefixedText(),
-					array(),
-					array( 'redirect' => 'no' )
-				);
-				$params[0] = Linker::link(
-					Title::newFromText( $params[0] ),
-					htmlspecialchars( $params[0] )
-				);
-				$params[1] = $lang->timeanddate( $params[1] );
 				break;
 			default:
 				if ( $title->isSpecialPage() ) {

@@ -37,22 +37,9 @@ class Linker {
 	const TOOL_LINKS_EMAIL = 2;
 
 	/**
-	 * Get the appropriate HTML attributes to add to the "a" element of an
-	 * external link, as created by [wikisyntax].
-	 *
-	 * @param string $class The contents of the class attribute; if an empty
-	 *   string is passed, which is the default value, defaults to 'external'.
-	 * @return string
-	 * @deprecated since 1.18 Just pass the external class directly to something
-	 *   using Html::expandAttributes.
-	 */
-	static function getExternalLinkAttributes( $class = 'external' ) {
-		wfDeprecated( __METHOD__, '1.18' );
-		return self::getLinkAttributesInternal( '', $class );
-	}
-
-	/**
 	 * Get the appropriate HTML attributes to add to the "a" element of an interwiki link.
+	 *
+	 * @deprecated since 1.25
 	 *
 	 * @param string $title The title text for the link, URL-encoded (???) but
 	 *   not HTML-escaped
@@ -63,6 +50,8 @@ class Linker {
 	 */
 	static function getInterwikiLinkAttributes( $title, $unused = null, $class = 'external' ) {
 		global $wgContLang;
+
+		wfDeprecated( __METHOD__, '1.25' );
 
 		# @todo FIXME: We have a whole bunch of handling here that doesn't happen in
 		# getExternalLinkAttributes, why?
@@ -76,6 +65,8 @@ class Linker {
 	/**
 	 * Get the appropriate HTML attributes to add to the "a" element of an internal link.
 	 *
+	 * @deprecated since 1.25
+	 *
 	 * @param string $title The title text for the link, URL-encoded (???) but
 	 *   not HTML-escaped
 	 * @param string $unused Unused
@@ -83,6 +74,8 @@ class Linker {
 	 * @return string
 	 */
 	static function getInternalLinkAttributes( $title, $unused = null, $class = '' ) {
+		wfDeprecated( __METHOD__, '1.25' );
+
 		$title = urldecode( $title );
 		$title = str_replace( '_', ' ', $title );
 		return self::getLinkAttributesInternal( $title, $class );
@@ -92,6 +85,8 @@ class Linker {
 	 * Get the appropriate HTML attributes to add to the "a" element of an internal
 	 * link, given the Title object for the page we want to link to.
 	 *
+	 * @deprecated since 1.25
+	 *
 	 * @param Title $nt
 	 * @param string $unused Unused
 	 * @param string $class The contents of the class attribute, default none
@@ -100,6 +95,8 @@ class Linker {
 	 * @return string
 	 */
 	static function getInternalLinkAttributesObj( $nt, $unused = null, $class = '', $title = false ) {
+		wfDeprecated( __METHOD__, '1.25' );
+
 		if ( $title === false ) {
 			$title = $nt->getPrefixedText();
 		}
@@ -109,12 +106,16 @@ class Linker {
 	/**
 	 * Common code for getLinkAttributesX functions
 	 *
+	 * @deprecated since 1.25
+	 *
 	 * @param string $title
 	 * @param string $class
 	 *
 	 * @return string
 	 */
 	private static function getLinkAttributesInternal( $title, $class ) {
+		wfDeprecated( __METHOD__, '1.25' );
+
 		$title = htmlspecialchars( $title );
 		$class = htmlspecialchars( $class );
 		$r = '';
@@ -193,7 +194,7 @@ class Linker {
 		$target, $html = null, $customAttribs = array(), $query = array(), $options = array()
 	) {
 		if ( !$target instanceof Title ) {
-			wfWarn( __METHOD__ . ': Requires $target to be a Title object.' );
+			wfWarn( __METHOD__ . ': Requires $target to be a Title object.', 2 );
 			return "<!-- ERROR -->$html";
 		}
 		wfProfileIn( __METHOD__ );
@@ -208,8 +209,9 @@ class Linker {
 		$dummy = new DummyLinker; // dummy linker instance for bc on the hooks
 
 		$ret = null;
-		if ( !wfRunHooks( 'LinkBegin', array( $dummy, $target, &$html,
-		&$customAttribs, &$query, &$options, &$ret ) ) ) {
+		if ( !wfRunHooks( 'LinkBegin',
+			array( $dummy, $target, &$html, &$customAttribs, &$query, &$options, &$ret ) )
+		) {
 			wfProfileOut( __METHOD__ );
 			return $ret;
 		}
@@ -219,7 +221,7 @@ class Linker {
 
 		# If we don't know whether the page exists, let's find out.
 		wfProfileIn( __METHOD__ . '-checkPageExistence' );
-		if ( !in_array( 'known', $options ) and !in_array( 'broken', $options ) ) {
+		if ( !in_array( 'known', $options ) && !in_array( 'broken', $options ) ) {
 			if ( $target->isKnown() ) {
 				$options[] = 'known';
 			} else {
@@ -364,7 +366,7 @@ class Linker {
 		foreach ( $merged as $key => $val ) {
 			# A false value suppresses the attribute, and we don't want the
 			# href attribute to be overridden.
-			if ( $key != 'href' and $val !== false ) {
+			if ( $key != 'href' && $val !== false ) {
 				$ret[$key] = $val;
 			}
 		}
@@ -1489,9 +1491,12 @@ class Linker {
 		# Foobar -- normal
 		# :Foobar -- override special treatment of prefix (images, language links)
 		# /Foobar -- convert to CurrentPage/Foobar
-		# /Foobar/ -- convert to CurrentPage/Foobar, strip the initial / from text
+		# /Foobar/ -- convert to CurrentPage/Foobar, strip the initial and final / from text
 		# ../ -- convert to CurrentPage, from CurrentPage/CurrentSubPage
-		# ../Foobar -- convert to CurrentPage/Foobar, from CurrentPage/CurrentSubPage
+		# ../Foobar -- convert to CurrentPage/Foobar,
+		#              (from CurrentPage/CurrentSubPage)
+		# ../Foobar/ -- convert to CurrentPage/Foobar, use 'Foobar' as text
+		#              (from CurrentPage/CurrentSubPage)
 
 		wfProfileIn( __METHOD__ );
 		$ret = $target; # default return value is no change
@@ -1537,7 +1542,7 @@ class Linker {
 						$ret = implode( '/', array_slice( $exploded, 0, -$dotdotcount ) );
 						# / at the end means don't show full path
 						if ( substr( $nodotdot, -1, 1 ) === '/' ) {
-							$nodotdot = substr( $nodotdot, 0, -1 );
+							$nodotdot = rtrim( $nodotdot, '/' );
 							if ( $text === '' ) {
 								$text = $nodotdot . $suffix;
 							}

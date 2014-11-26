@@ -289,8 +289,13 @@ call_user_func( function () use ( $wgValidSkinNames ) {
 	$factory->register( 'fallback', 'Fallback', function () {
 		return new SkinFallback;
 	} );
+	// Register a hidden skin for api output
+	$factory->register( 'apioutput', 'ApiOutput', function () {
+		return new SkinApi;
+	} );
 } );
 $wgSkipSkins[] = 'fallback';
+$wgSkipSkins[] = 'apioutput';
 
 if ( $wgLocalInterwiki ) {
 	array_unshift( $wgLocalInterwikis, $wgLocalInterwiki );
@@ -299,6 +304,11 @@ if ( $wgLocalInterwiki ) {
 // Set default shared prefix
 if ( $wgSharedPrefix === false ) {
 	$wgSharedPrefix = $wgDBprefix;
+}
+
+// Set default shared schema
+if ( $wgSharedSchema === false ) {
+	$wgSharedSchema = $wgDBmwschema;
 }
 
 if ( !$wgCookiePrefix ) {
@@ -511,6 +521,10 @@ if ( $wgTmpDirectory === false ) {
 	$wgTmpDirectory = wfTempDir();
 	wfProfileOut( $fname . '-tempDir' );
 }
+
+// We don't use counters anymore. Left here for extensions still
+// expecting this to exist. Should be removed sometime 1.26 or later.
+$wgDisableCounters = true;
 
 wfProfileOut( $fname . '-defaults2' );
 wfProfileIn( $fname . '-misc1' );

@@ -58,17 +58,6 @@ class LogEventsList extends ContextSource {
 	}
 
 	/**
-	 * Deprecated alias for getTitle(); do not use.
-	 *
-	 * @deprecated since 1.20; use getTitle() instead.
-	 * @return Title
-	 */
-	public function getDisplayTitle() {
-		wfDeprecated( __METHOD__, '1.20' );
-		return $this->getTitle();
-	}
-
-	/**
 	 * Show options for the log list
 	 *
 	 * @param array|string $types
@@ -234,7 +223,8 @@ class LogEventsList extends ContextSource {
 			'user',
 			'mw-log-user',
 			15,
-			$user
+			$user,
+			array( 'class' => 'mw-autocomplete-user' )
 		);
 
 		return '<span style="white-space: nowrap">' . $label . '</span>';
@@ -271,14 +261,21 @@ class LogEventsList extends ContextSource {
 	 * @return string
 	 */
 	private function getExtraInputs( $types ) {
-		$offender = $this->getRequest()->getVal( 'offender' );
-		$user = User::newFromName( $offender, false );
-		if ( !$user || ( $user->getId() == 0 && !IP::isIPAddress( $offender ) ) ) {
-			$offender = ''; // Blank field if invalid
-		}
-		if ( count( $types ) == 1 && $types[0] == 'suppress' ) {
-			return Xml::inputLabel( $this->msg( 'revdelete-offender' )->text(), 'offender',
-				'mw-log-offender', 20, $offender );
+		if ( count( $types ) == 1 ) {
+			if ( $types[0] == 'suppress' ) {
+				$offender = $this->getRequest()->getVal( 'offender' );
+				$user = User::newFromName( $offender, false );
+				if ( !$user || ( $user->getId() == 0 && !IP::isIPAddress( $offender ) ) ) {
+					$offender = ''; // Blank field if invalid
+				}
+				return Xml::inputLabel( $this->msg( 'revdelete-offender' )->text(), 'offender',
+					'mw-log-offender', 20, $offender );
+			} else {
+				// Allow extensions to add their own extra inputs
+				$input = '';
+				wfRunHooks( 'LogEventsListGetExtraInputs', array( $types[0], $this, &$input ) );
+				return $input;
+			}
 		}
 
 		return '';
@@ -545,13 +542,29 @@ class LogEventsList extends ContextSource {
 			$pager->mLimit = $lim;
 		}
 
-		$logBody = $pager->getBody();
+		$logBody = null;
+		// Check if we can avoid the DB query all together
+		if ( $page !== '' && !$param['useMaster'] ) {
+			$title = ( $page instanceof Title ) ? $page : Title::newFromText( $page );
+			if ( $title ) {
+				$member = $title->getNamespace() . ':' . $title->getDBkey();
+				if ( !BloomCache::get( 'main' )->check( wfWikiId(), 'TitleHasLogs', $member ) ) {
+					$logBody = '';
+				}
+			} else {
+				$logBody = '';
+			}
+		}
+
+		// Fetch the log rows and build the HTML if needed
+		$logBody = ( $logBody === null ) ? $pager->getBody() : $logBody;
+
 		$s = '';
 
 		if ( $logBody ) {
 			if ( $msgKey[0] ) {
 				$dir = $context->getLanguage()->getDir();
-				$lang = $context->getLanguage()->getCode();
+				$lang = $context->getLanguage()->getHtmlCode();
 
 				$s = Xml::openElement( 'div', array(
 					'class' => "mw-warning-with-logexcerpt mw-content-$dir",

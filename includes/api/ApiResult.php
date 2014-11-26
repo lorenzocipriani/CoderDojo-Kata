@@ -481,10 +481,14 @@ class ApiResult extends ApiBase {
 			$continue = explode( '||', $continue );
 			$this->dieContinueUsageIf( count( $continue ) !== 2 );
 			$this->generatorDone = ( $continue[0] === '-' );
+			$skip = explode( '|', $continue[1] );
 			if ( !$this->generatorDone ) {
 				$this->generatorParams = explode( '|', $continue[0] );
+			} else {
+				// When the generator is complete, don't run any modules that
+				// depend on it.
+				$skip += $this->continueGeneratedModules;
 			}
-			$skip = explode( '|', $continue[1] );
 		}
 
 		$this->continueAllModules = array();
@@ -569,6 +573,7 @@ class ApiResult extends ApiBase {
 		} else {
 			$key = 'continue';
 			$data = array();
+			$batchcomplete = false;
 
 			$finishedModules = array_diff(
 				array_keys( $this->continueAllModules ),
@@ -611,9 +616,11 @@ class ApiResult extends ApiBase {
 				$finishedModules = array_diff(
 					$finishedModules, $this->continueGeneratedModules
 				);
+				$batchcomplete = true;
 			} else {
 				// Generator and prop modules are all done. Mark it so.
 				$this->generatorDone = true;
+				$batchcomplete = true;
 			}
 
 			// Set 'continue' if any continuation data is set or if the generator
@@ -622,6 +629,10 @@ class ApiResult extends ApiBase {
 				$data['continue'] =
 					( $this->generatorDone ? '-' : join( '|', $this->generatorParams ) ) .
 					'||' . join( '|', $finishedModules );
+			}
+
+			if ( $batchcomplete ) {
+				$this->addValue( null, 'batchcomplete', '', ApiResult::ADD_ON_TOP | ApiResult::NO_SIZE_CHECK );
 			}
 		}
 		if ( $data ) {

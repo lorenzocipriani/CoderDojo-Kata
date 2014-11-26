@@ -796,6 +796,9 @@ class WebInstallerName extends WebInstallerPage {
 			) ) .
 			$this->parent->getTextBox( array(
 				'var' => '_AdminEmail',
+				'attribs' => array(
+					'dir' => 'ltr',
+				),
 				'label' => 'config-admin-email',
 				'help' => $this->parent->getHelpBox( 'config-admin-email-help' )
 			) ) .
@@ -1284,8 +1287,7 @@ class WebInstallerOptions extends WebInstallerPage {
 
 		$retVal = true;
 
-		if ( !array_key_exists( $this->getVar( '_RightsProfile' ), $this->parent->rightsProfiles )
-		) {
+		if ( !array_key_exists( $this->getVar( '_RightsProfile' ), $this->parent->rightsProfiles ) ) {
 			reset( $this->parent->rightsProfiles );
 			$this->setVar( '_RightsProfile', key( $this->parent->rightsProfiles ) );
 		}
@@ -1461,7 +1463,7 @@ class WebInstallerComplete extends WebInstallerPage {
 			strpos( $_SERVER['HTTP_USER_AGENT'], 'MSIE' ) !== false
 		) {
 			// JS appears to be the only method that works consistently with IE7+
-			$this->addHtml( "\n<script>jQuery( function () { document.location = " .
+			$this->addHtml( "\n<script>jQuery( function () { location.href = " .
 				Xml::encodeJsVar( $lsUrl ) . "; } );</script>\n" );
 		} else {
 			$this->parent->request->response()->header( "Refresh: 0;url=$lsUrl" );

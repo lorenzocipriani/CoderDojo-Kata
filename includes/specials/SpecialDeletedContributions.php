@@ -315,7 +315,8 @@ class DeletedContributionsPage extends SpecialPage {
 			return;
 		}
 
-		$options['limit'] = $request->getInt( 'limit', $this->getConfig()->get( 'QueryPageDefaultLimit' ) );
+		$options['limit'] = $request->getInt( 'limit',
+			$this->getConfig()->get( 'QueryPageDefaultLimit' ) );
 		$options['target'] = $target;
 
 		$userObj = User::newFromName( $target, false );
@@ -533,6 +534,8 @@ class DeletedContributionsPage extends SpecialPage {
 			$f .= "\t" . Html::hidden( $name, $value ) . "\n";
 		}
 
+		$this->getOutput()->addModules( 'mediawiki.userSuggest' );
+
 		$f .= Xml::openElement( 'fieldset' );
 		$f .= Xml::element( 'legend', array(), $this->msg( 'sp-contributions-search' )->text() );
 		$f .= Xml::tags(
@@ -546,7 +549,10 @@ class DeletedContributionsPage extends SpecialPage {
 			'text',
 			array(
 				'size' => '20',
-				'required' => ''
+				'required' => '',
+				'class' => array(
+					'mw-autocomplete-user', // used by mediawiki.userSuggest
+				),
 			) + ( $options['target'] ? array() : array( 'autofocus' ) )
 		) . ' ';
 		$f .= Html::namespaceSelector(

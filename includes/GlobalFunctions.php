@@ -30,7 +30,7 @@ if ( !defined( 'MEDIAWIKI' ) ) {
 /**
  * Compatibility functions
  *
- * We support PHP 5.3.2 and up.
+ * We support PHP 5.3.3 and up.
  * Re-implementations of newer functions or functions in non-standard
  * PHP extensions may be included here.
  */
@@ -102,19 +102,30 @@ if ( !function_exists( 'gzdecode' ) ) {
 }
 
 // hash_equals function only exists in PHP >= 5.6.0
+// http://php.net/hash_equals
 if ( !function_exists( 'hash_equals' ) ) {
 	/**
-	 * Check whether a user-provided string is equal to a fixed-length secret without
-	 * revealing bytes of the secret through timing differences.
+	 * Check whether a user-provided string is equal to a fixed-length secret string
+	 * without revealing bytes of the secret string through timing differences.
 	 *
-	 * This timing guarantee -- that a partial match takes the same time as a complete
-	 * mismatch -- is why this function is used in some security-sensitive parts of the code.
-	 * For example, it shouldn't be possible to guess an HMAC signature one byte at a time.
+	 * The usual way to compare strings (PHP's === operator or the underlying memcmp()
+	 * function in C) is to compare corresponding bytes and stop at the first difference,
+	 * which would take longer for a partial match than for a complete mismatch. This
+	 * is not secure when one of the strings (e.g. an HMAC or token) must remain secret
+	 * and the other may come from an attacker. Statistical analysis of timing measurements
+	 * over many requests may allow the attacker to guess the string's bytes one at a time
+	 * (and check his guesses) even if the timing differences are extremely small.
+	 *
+	 * When making such a security-sensitive comparison, it is essential that the sequence
+	 * in which instructions are executed and memory locations are accessed not depend on
+	 * the secret string's value. HOWEVER, for simplicity, we do not attempt to minimize
+	 * the inevitable leakage of the string's length. That is generally known anyway as
+	 * a chararacteristic of the hash function used to compute the secret value.
 	 *
 	 * Longer explanation: http://www.emerose.com/timing-attacks-explained
 	 *
 	 * @codeCoverageIgnore
-	 * @param string $known_string Fixed-length secret to compare against
+	 * @param string $known_string Fixed-length secret string to compare against
 	 * @param string $user_string User-provided string
 	 * @return bool True if the strings are the same, false otherwise
 	 */
@@ -134,14 +145,14 @@ if ( !function_exists( 'hash_equals' ) ) {
 			return false;
 		}
 
-		// Note that we do one thing PHP doesn't: try to avoid leaking information about
-		// relative lengths of $known_string and $user_string, and of multiple $known_strings.
-		// However, lengths may still inevitably leak through, for example, CPU cache misses.
 		$known_string_len = strlen( $known_string );
-		$user_string_len = strlen( $user_string );
-		$result = $known_string_len ^ $user_string_len;
-		for ( $i = 0; $i < $user_string_len; $i++ ) {
-			$result |= ord( $known_string[$i % $known_string_len] ) ^ ord( $user_string[$i] );
+		if ( $known_string_len !== strlen( $user_string ) ) {
+			return false;
+		}
+
+		$result = 0;
+		for ( $i = 0; $i < $known_string_len; $i++ ) {
+			$result |= ord( $known_string[$i] ) ^ ord( $user_string[$i] );
 		}
 
 		return ( $result === 0 );
@@ -939,6 +950,8 @@ function wfMatchesDomainList( $url, $domains ) {
  * $wgDebugRawPage - if false, 'action=raw' hits will not result in debug output.
  * $wgDebugComments - if on, some debug items may appear in comments in the HTML output.
  *
+ * @since 1.25 support for additional context data
+ *
  * @param string $text
  * @param string|bool $dest Destination of the message:
  *     - 'all': both to the log and HTML (debug toolbar or HTML comments)
@@ -946,9 +959,11 @@ function wfMatchesDomainList( $url, $domains ) {
  *   For backward compatibility, it can also take a boolean:
  *     - true: same as 'all'
  *     - false: same as 'log'
+ * @param array $context Additional logging context data
  */
-function wfDebug( $text, $dest = 'all' ) {
-	global $wgDebugLogFile, $wgDebugRawPage, $wgDebugLogPrefix;
+function wfDebug( $text, $dest = 'all', array $context = array() ) {
+	global $wgDebugRawPage, $wgDebugLogPrefix;
+	global $wgDebugTimestamps, $wgRequestTime;
 
 	if ( !$wgDebugRawPage && wfIsDebugRawPage() ) {
 		return;
@@ -961,22 +976,36 @@ function wfDebug( $text, $dest = 'all' ) {
 		$dest = 'log';
 	}
 
-	$timer = wfDebugTimer();
-	if ( $timer !== '' ) {
-		$text = preg_replace( '/[^\n]/', $timer . '\0', $text, 1 );
+	$text = trim( $text );
+
+	// Inline logic from deprecated wfDebugTimer()
+	if ( $wgDebugTimestamps ) {
+		$context['seconds_elapsed'] = sprintf(
+			'%6.4f',
+			microtime( true ) - $wgRequestTime
+		);
+		$context['memory_used'] = sprintf(
+			'%5.1fM',
+			( memory_get_usage( true ) / ( 1024 * 1024 ) )
+		);
 	}
 
 	if ( $dest === 'all' ) {
-		MWDebug::debugMsg( $text );
+		$prefix = '';
+		if ( $wgDebugTimestamps ) {
+			// Prepend elapsed request time and real memory usage with two
+			// trailing spaces.
+			$prefix = "{$context['seconds_elapsed']} {$context['memory_used']}  ";
+		}
+		MWDebug::debugMsg( "{$prefix}{$text}" );
 	}
 
-	if ( $wgDebugLogFile != '' ) {
-		# Strip unprintables; they can switch terminal modes when binary data
-		# gets dumped, which is pretty annoying.
-		$text = preg_replace( '![\x00-\x08\x0b\x0c\x0e-\x1f]!', ' ', $text );
-		$text = $wgDebugLogPrefix . $text;
-		wfErrorLog( $text, $wgDebugLogFile );
+	if ( $wgDebugLogPrefix !== '' ) {
+		$context['prefix'] = $wgDebugLogPrefix;
 	}
+
+	$logger = MWLogger::getInstance( 'wfDebug' );
+	$logger->debug( $text, $context );
 }
 
 /**
@@ -1005,10 +1034,13 @@ function wfIsDebugRawPage() {
 /**
  * Get microsecond timestamps for debug logs
  *
+ * @deprecated since 1.25
  * @return string
  */
 function wfDebugTimer() {
 	global $wgDebugTimestamps, $wgRequestTime;
+
+	wfDeprecated( __METHOD__, '1.25' );
 
 	if ( !$wgDebugTimestamps ) {
 		return '';
@@ -1042,6 +1074,7 @@ function wfDebugMem( $exact = false ) {
  * a sampling factor.
  *
  * @since 1.23 support for sampling log messages via $wgDebugLogGroups.
+ * @since 1.25 support for additional context data
  *
  * @param string $logGroup
  * @param string $text
@@ -1053,12 +1086,11 @@ function wfDebugMem( $exact = false ) {
  *   For backward compatibility, it can also take a boolean:
  *     - true: same as 'all'
  *     - false: same as 'private'
+ * @param array $context Additional logging context data
  */
-function wfDebugLog( $logGroup, $text, $dest = 'all' ) {
-	global $wgDebugLogGroups;
-
-	$text = trim( $text ) . "\n";
-
+function wfDebugLog(
+	$logGroup, $text, $dest = 'all', array $context = array()
+) {
 	// Turn $dest into a string if it's a boolean (for b/c)
 	if ( $dest === true ) {
 		$dest = 'all';
@@ -1066,66 +1098,28 @@ function wfDebugLog( $logGroup, $text, $dest = 'all' ) {
 		$dest = 'private';
 	}
 
-	if ( !isset( $wgDebugLogGroups[$logGroup] ) ) {
-		if ( $dest !== 'private' ) {
-			wfDebug( "[$logGroup] $text", $dest );
-		}
-		return;
-	}
+	$text = trim( $text );
 
 	if ( $dest === 'all' ) {
-		MWDebug::debugMsg( "[$logGroup] $text" );
+		MWDebug::debugMsg( "[{$logGroup}] {$text}\n" );
 	}
 
-	$logConfig = $wgDebugLogGroups[$logGroup];
-	if ( $logConfig === false ) {
-		return;
-	}
-	if ( is_array( $logConfig ) ) {
-		if ( isset( $logConfig['sample'] ) && mt_rand( 1, $logConfig['sample'] ) !== 1 ) {
-			return;
-		}
-		$destination = $logConfig['destination'];
-	} else {
-		$destination = strval( $logConfig );
-	}
-
-	$time = wfTimestamp( TS_DB );
-	$wiki = wfWikiID();
-	$host = wfHostname();
-	wfErrorLog( "$time $host $wiki: $text", $destination );
+	$logger = MWLogger::getInstance( $logGroup );
+	$context['private'] = ( $dest === 'private' );
+	$logger->debug( $text, $context );
 }
 
 /**
  * Log for database errors
  *
+ * @since 1.25 support for additional context data
+ *
  * @param string $text Database error message.
+ * @param array $context Additional logging context data
  */
-function wfLogDBError( $text ) {
-	global $wgDBerrorLog, $wgDBerrorLogTZ;
-	static $logDBErrorTimeZoneObject = null;
-
-	if ( $wgDBerrorLog ) {
-		$host = wfHostname();
-		$wiki = wfWikiID();
-
-		if ( $wgDBerrorLogTZ && !$logDBErrorTimeZoneObject ) {
-			$logDBErrorTimeZoneObject = new DateTimeZone( $wgDBerrorLogTZ );
-		}
-
-		// Workaround for https://bugs.php.net/bug.php?id=52063
-		// Can be removed when min PHP > 5.3.2
-		if ( $logDBErrorTimeZoneObject === null ) {
-			$d = date_create( "now" );
-		} else {
-			$d = date_create( "now", $logDBErrorTimeZoneObject );
-		}
-
-		$date = $d->format( 'D M j G:i:s T Y' );
-
-		$text = "$date\t$host\t$wiki\t" . trim( $text ) . "\n";
-		wfErrorLog( $text, $wgDBerrorLog );
-	}
+function wfLogDBError( $text, array $context = array() ) {
+	$logger = MWLogger::getInstance( 'wfLogDBError' );
+	$logger->error( trim( $text ), $context );
 }
 
 /**
@@ -1177,71 +1171,24 @@ function wfLogWarning( $msg, $callerOffset = 1, $level = E_USER_WARNING ) {
  *
  * Can also log to TCP or UDP with the syntax udp://host:port/prefix. This will
  * send lines to the specified port, prefixed by the specified prefix and a space.
+ * @since 1.25 support for additional context data
  *
  * @param string $text
  * @param string $file Filename
+ * @param array $context Additional logging context data
  * @throws MWException
  */
-function wfErrorLog( $text, $file ) {
-	if ( substr( $file, 0, 4 ) == 'udp:' ) {
-		# Needs the sockets extension
-		if ( preg_match( '!^(tcp|udp):(?://)?\[([0-9a-fA-F:]+)\]:(\d+)(?:/(.*))?$!', $file, $m ) ) {
-			// IPv6 bracketed host
-			$host = $m[2];
-			$port = intval( $m[3] );
-			$prefix = isset( $m[4] ) ? $m[4] : false;
-			$domain = AF_INET6;
-		} elseif ( preg_match( '!^(tcp|udp):(?://)?([a-zA-Z0-9.-]+):(\d+)(?:/(.*))?$!', $file, $m ) ) {
-			$host = $m[2];
-			if ( !IP::isIPv4( $host ) ) {
-				$host = gethostbyname( $host );
-			}
-			$port = intval( $m[3] );
-			$prefix = isset( $m[4] ) ? $m[4] : false;
-			$domain = AF_INET;
-		} else {
-			throw new MWException( __METHOD__ . ': Invalid UDP specification' );
-		}
-
-		// Clean it up for the multiplexer
-		if ( strval( $prefix ) !== '' ) {
-			$text = preg_replace( '/^/m', $prefix . ' ', $text );
-
-			// Limit to 64KB
-			if ( strlen( $text ) > 65506 ) {
-				$text = substr( $text, 0, 65506 );
-			}
-
-			if ( substr( $text, -1 ) != "\n" ) {
-				$text .= "\n";
-			}
-		} elseif ( strlen( $text ) > 65507 ) {
-			$text = substr( $text, 0, 65507 );
-		}
-
-		$sock = socket_create( $domain, SOCK_DGRAM, SOL_UDP );
-		if ( !$sock ) {
-			return;
-		}
-
-		socket_sendto( $sock, $text, strlen( $text ), 0, $host, $port );
-		socket_close( $sock );
-	} else {
-		wfSuppressWarnings();
-		$exists = file_exists( $file );
-		$size = $exists ? filesize( $file ) : false;
-		if ( !$exists || ( $size !== false && $size + strlen( $text ) < 0x7fffffff ) ) {
-			file_put_contents( $file, $text, FILE_APPEND );
-		}
-		wfRestoreWarnings();
-	}
+function wfErrorLog( $text, $file, array $context = array() ) {
+	$logger = MWLogger::getInstance( 'wfErrorLog' );
+	$context['destination'] = $file;
+	$logger->info( trim( $text ), $context );
 }
 
 /**
  * @todo document
  */
 function wfLogProfilingData() {
-	global $wgRequestTime, $wgDebugLogFile, $wgDebugLogGroups, $wgDebugRawPage;
+	global $wgRequestTime, $wgDebugLogGroups, $wgDebugRawPage;
 	global $wgProfileLimit, $wgUser, $wgRequest;
 
 	StatCounter::singleton()->flush();
@@ -1262,53 +1209,53 @@ function wfLogProfilingData() {
 
 	$profiler->logData();
 
-	// Check whether this should be logged in the debug file.
 	if ( isset( $wgDebugLogGroups['profileoutput'] )
 		&& $wgDebugLogGroups['profileoutput'] === false
 	) {
-		// Explicitely disabled
-		return;
-	}
-	if ( !isset( $wgDebugLogGroups['profileoutput'] ) && $wgDebugLogFile == '' ) {
-		// Logging not enabled; no point going further
+		// Explicitly disabled
 		return;
 	}
 	if ( !$wgDebugRawPage && wfIsDebugRawPage() ) {
 		return;
 	}
 
-	$forward = '';
+	$ctx = array( 'elapsed' => $elapsed );
 	if ( !empty( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) {
-		$forward = ' forwarded for ' . $_SERVER['HTTP_X_FORWARDED_FOR'];
+		$ctx['forwarded_for'] = $_SERVER['HTTP_X_FORWARDED_FOR'];
 	}
 	if ( !empty( $_SERVER['HTTP_CLIENT_IP'] ) ) {
-		$forward .= ' client IP ' . $_SERVER['HTTP_CLIENT_IP'];
+		$ctx['client_ip'] = $_SERVER['HTTP_CLIENT_IP'];
 	}
 	if ( !empty( $_SERVER['HTTP_FROM'] ) ) {
-		$forward .= ' from ' . $_SERVER['HTTP_FROM'];
+		$ctx['from'] = $_SERVER['HTTP_FROM'];
 	}
-	if ( $forward ) {
-		$forward = "\t(proxied via {$_SERVER['REMOTE_ADDR']}{$forward})";
+	if ( isset( $ctx['forwarded_for'] ) ||
+		isset( $ctx['client_ip'] ) ||
+		isset( $ctx['from'] ) ) {
+		$ctx['proxy'] = $_SERVER['REMOTE_ADDR'];
 	}
+
 	// Don't load $wgUser at this late stage just for statistics purposes
-	// @todo FIXME: We can detect some anons even if it is not loaded. See User::getId()
+	// @todo FIXME: We can detect some anons even if it is not loaded.
+	// See User::getId()
 	if ( $wgUser->isItemLoaded( 'id' ) && $wgUser->isAnon() ) {
-		$forward .= ' anon';
+		$ctx['anon'] = true;
+	} else {
+		$ctx['anon'] = false;
 	}
 
 	// Command line script uses a FauxRequest object which does not have
 	// any knowledge about an URL and throw an exception instead.
 	try {
-		$requestUrl = $wgRequest->getRequestURL();
-	} catch ( MWException $e ) {
-		$requestUrl = 'n/a';
+		$ctx['url'] = urldecode( $wgRequest->getRequestURL() );
+	} catch ( MWException $ignored ) {
+		// no-op
 	}
 
-	$log = sprintf( "%s\t%04.3f\t%s\n",
-		gmdate( 'YmdHis' ), $elapsed,
-		urldecode( $requestUrl . $forward ) );
+	$ctx['output'] = $profiler->getOutput();
 
-	wfDebugLog( 'profileoutput', $log . $profiler->getOutput() );
+	$log = MWLogger::getInstance( 'profileoutput' );
+	$log->info( "Elapsed: {elapsed}; URL: <{url}>\n{output}", $ctx );
 }
 
 /**
@@ -1699,15 +1646,15 @@ function wfMsgExt( $key, $options ) {
 	array_shift( $args );
 	array_shift( $args );
 	$options = (array)$options;
+	$validOptions = array( 'parse', 'parseinline', 'escape', 'escapenoentities', 'replaceafter',
+		'parsemag', 'content' );
 
 	foreach ( $options as $arrayKey => $option ) {
 		if ( !preg_match( '/^[0-9]+|language$/', $arrayKey ) ) {
-			# An unknown index, neither numeric nor "language"
+			// An unknown index, neither numeric nor "language"
 			wfWarn( "wfMsgExt called with incorrect parameter key $arrayKey", 1, E_USER_WARNING );
-		} elseif ( preg_match( '/^[0-9]+$/', $arrayKey ) && !in_array( $option,
-		array( 'parse', 'parseinline', 'escape', 'escapenoentities',
-		'replaceafter', 'parsemag', 'content' ) ) ) {
-			# A numeric index with unknown value
+		} elseif ( preg_match( '/^[0-9]+$/', $arrayKey ) && !in_array( $option, $validOptions ) ) {
+			// A numeric index with unknown value
 			wfWarn( "wfMsgExt called with incorrect parameter $option", 1, E_USER_WARNING );
 		}
 	}
@@ -1868,52 +1815,37 @@ function wfDebugBacktrace( $limit = 0 ) {
 /**
  * Get a debug backtrace as a string
  *
+ * @param bool|null $raw If true, the return value is plain text. If false, HTML.
+ *   Defaults to $wgCommandLineMode if unset.
  * @return string
+ * @since 1.25 Supports $raw parameter.
  */
-function wfBacktrace() {
+function wfBacktrace( $raw = null ) {
 	global $wgCommandLineMode;
 
-	if ( $wgCommandLineMode ) {
-		$msg = '';
-	} else {
-		$msg = "<ul>\n";
-	}
-	$backtrace = wfDebugBacktrace();
-	foreach ( $backtrace as $call ) {
-		if ( isset( $call['file'] ) ) {
-			$f = explode( DIRECTORY_SEPARATOR, $call['file'] );
-			$file = $f[count( $f ) - 1];
-		} else {
-			$file = '-';
-		}
-		if ( isset( $call['line'] ) ) {
-			$line = $call['line'];
-		} else {
-			$line = '-';
-		}
-		if ( $wgCommandLineMode ) {
-			$msg .= "$file line $line calls ";
-		} else {
-			$msg .= '<li>' . $file . ' line ' . $line . ' calls ';
-		}
-		if ( !empty( $call['class'] ) ) {
-			$msg .= $call['class'] . $call['type'];
-		}
-		$msg .= $call['function'] . '()';
-
-		if ( $wgCommandLineMode ) {
-			$msg .= "\n";
-		} else {
-			$msg .= "</li>\n";
-		}
-	}
-	if ( $wgCommandLineMode ) {
-		$msg .= "\n";
-	} else {
-		$msg .= "</ul>\n";
+	if ( $raw === null ) {
+		$raw = $wgCommandLineMode;
 	}
 
-	return $msg;
+	if ( $raw ) {
+		$frameFormat = "%s line %s calls %s()\n";
+		$traceFormat = "%s";
+	} else {
+		$frameFormat = "<li>%s line %s calls %s()</li>\n";
+		$traceFormat = "<ul>\n%s</ul>\n";
+	}
+
+	$frames = array_map( function ( $frame ) use ( $frameFormat ) {
+		$file = !empty( $frame['file'] ) ? basename( $frame['file'] ) : '-';
+		$line = $frame['line'] ?: '-';
+		$call = $frame['function'];
+		if ( !empty( $frame['class'] ) ) {
+			$call = $frame['class'] . $frame['type'] . $call;
+		}
+		return sprintf( $frameFormat, $file, $line, $call );
+	}, wfDebugBacktrace() );
+
+	return sprintf( $traceFormat, implode( '', $frames ) );
 }
 
 /**
@@ -2975,7 +2907,9 @@ function wfShellExec( $cmd, &$retval = null, $environ = array(),
  * function, as all the arguments to wfShellExec can become unwieldy.
  *
  * @note This also includes errors from limit.sh, e.g. if $wgMaxShellFileSize is exceeded.
- * @param string $cmd Command line, properly escaped for shell.
+ * @param string|string[] $cmd If string, a properly shell-escaped command line,
+ *   or an array of unescaped arguments, in which case each value will be escaped
+ *   Example:   [ 'convert', '-font', 'font name' ] would produce "'convert' '-font' 'font name'"
  * @param null|mixed &$retval Optional, will receive the program's exit code.
  *   (non-zero is usually failure)
  * @param array $environ Optional environment variables which should be
@@ -3752,46 +3686,79 @@ function wfGetNull() {
 }
 
 /**
- * Modern version of wfWaitForSlaves(). Instead of looking at replication lag
- * and waiting for it to go down, this waits for the slaves to catch up to the
- * master position. Use this when updating very large numbers of rows, as
- * in maintenance scripts, to avoid causing too much lag.  Of course, this is
- * a no-op if there are no slaves.
+ * Waits for the slaves to catch up to the master position
+ *
+ * Use this when updating very large numbers of rows, as in maintenance scripts,
+ * to avoid causing too much lag. Of course, this is a no-op if there are no slaves.
+ *
+ * By default this waits on the main DB cluster of the current wiki.
+ * If $cluster is set to "*" it will wait on all DB clusters, including
+ * external ones. If the lag being waiting on is caused by the code that
+ * does this check, it makes since to use $ifWritesSince, particularly if
+ * cluster is "*", to avoid excess overhead.
+ *
+ * Never call this function after a big DB write that is still in a transaction.
+ * This only makes sense after the possible lag inducing changes were committed.
  *
  * @param float|null $ifWritesSince Only wait if writes were done since this UNIX timestamp
  * @param string|bool $wiki Wiki identifier accepted by wfGetLB
  * @param string|bool $cluster Cluster name accepted by LBFactory. Default: false.
+ * @param int|null $timeout Max wait time. Default: 1 day (cli), ~10 seconds (web)
  * @return bool Success (able to connect and no timeouts reached)
  */
-function wfWaitForSlaves( $ifWritesSince = false, $wiki = false, $cluster = false ) {
+function wfWaitForSlaves(
+	$ifWritesSince = null, $wiki = false, $cluster = false, $timeout = null
+) {
 	// B/C: first argument used to be "max seconds of lag"; ignore such values
-	$ifWritesSince = ( $ifWritesSince > 1e9 ) ? $ifWritesSince : false;
+	$ifWritesSince = ( $ifWritesSince > 1e9 ) ? $ifWritesSince : null;
 
-	if ( $cluster !== false ) {
-		$lb = wfGetLBFactory()->getExternalLB( $cluster );
+	if ( $timeout === null ) {
+		$timeout = ( PHP_SAPI === 'cli' ) ? 86400 : 10;
+	}
+
+	// Figure out which clusters need to be checked
+	$lbs = array();
+	if ( $cluster === '*' ) {
+		wfGetLBFactory()->forEachLB( function ( LoadBalancer $lb ) use ( &$lbs ) {
+			$lbs[] = $lb;
+		} );
+	} elseif ( $cluster !== false ) {
+		$lbs[] = wfGetLBFactory()->getExternalLB( $cluster );
 	} else {
-		$lb = wfGetLB( $wiki );
+		$lbs[] = wfGetLB( $wiki );
 	}
 
-	// bug 27975 - Don't try to wait for slaves if there are none
-	// Prevents permission error when getting master position
-	if ( $lb->getServerCount() > 1 ) {
-		if ( $ifWritesSince && !$lb->hasMasterConnection() ) {
-			return true; // assume no writes done
-		}
-		$dbw = $lb->getConnection( DB_MASTER, array(), $wiki );
-		if ( $ifWritesSince && $dbw->lastDoneWrites() < $ifWritesSince ) {
-			return true; // no writes since the last wait
-		}
-		$pos = $dbw->getMasterPos();
-		// The DBMS may not support getMasterPos() or the whole
-		// load balancer might be fake (e.g. $wgAllDBsAreLocalhost).
-		if ( $pos !== false ) {
-			return $lb->waitForAll( $pos, PHP_SAPI === 'cli' ? 86400 : null );
+	// Get all the master positions of applicable DBs right now.
+	// This can be faster since waiting on one cluster reduces the
+	// time needed to wait on the next clusters.
+	$masterPositions = array_fill( 0, count( $lbs ), false );
+	foreach ( $lbs as $i => $lb ) {
+		// bug 27975 - Don't try to wait for slaves if there are none
+		// Prevents permission error when getting master position
+		if ( $lb->getServerCount() > 1 ) {
+			if ( $ifWritesSince && !$lb->hasMasterConnection() ) {
+				continue; // assume no writes done
+			}
+			// Use the empty string to not trigger selectDB() since the connection
+			// may have been to a server that does not have a DB for the current wiki.
+			$dbw = $lb->getConnection( DB_MASTER, array(), '' );
+			if ( $ifWritesSince && $dbw->lastDoneWrites() < $ifWritesSince ) {
+				continue; // no writes since the last wait
+			}
+			$masterPositions[$i] = $dbw->getMasterPos();
 		}
 	}
 
-	return true;
+	$ok = true;
+	foreach ( $lbs as $i => $lb ) {
+		if ( $masterPositions[$i] ) {
+			// The DBMS may not support getMasterPos() or the whole
+			// load balancer might be fake (e.g. $wgAllDBsAreLocalhost).
+			$ok = $lb->waitForAll( $masterPositions[$i], $timeout ) && $ok;
+		}
+	}
+
+	return $ok;
 }
 
 /**

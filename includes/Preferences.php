@@ -1466,28 +1466,6 @@ class Preferences {
 
 		return Status::newGood();
 	}
-
-	/**
-	 * Try to set a user's email address.
-	 * This does *not* try to validate the address.
-	 * Caller is responsible for checking $wgAuth and 'editmyprivateinfo'
-	 * right.
-	 *
-	 * @deprecated since 1.20; use User::setEmailWithConfirmation() instead.
-	 * @param User $user
-	 * @param string $newaddr New email address
-	 * @return array (true on success or Status on failure, info string)
-	 */
-	public static function trySetUserEmail( User $user, $newaddr ) {
-		wfDeprecated( __METHOD__, '1.20' );
-
-		$result = $user->setEmailWithConfirmation( $newaddr );
-		if ( $result->isGood() ) {
-			return array( true, $result->value );
-		} else {
-			return array( $result, 'mailerror' );
-		}
-	}
 }
 
 /** Some tweaks to allow js prefs to work */
@@ -1539,12 +1517,8 @@ class PreferencesForm extends HTMLForm {
 	 * @return string
 	 */
 	function getButtons() {
-		global $wgUseMediaWikiUIEverywhere;
 
 		$attrs = array( 'id' => 'mw-prefs-restoreprefs' );
-		if ( $wgUseMediaWikiUIEverywhere ) {
-			$attrs['class'] = 'mw-ui-button mw-ui-quiet';
-		}
 
 		if ( !$this->getModifiedUser()->isAllowedAny( 'editmyprivateinfo', 'editmyoptions' ) ) {
 			return '';
@@ -1556,7 +1530,7 @@ class PreferencesForm extends HTMLForm {
 			$t = SpecialPage::getTitleFor( 'Preferences', 'reset' );
 
 			$html .= "\n" . Linker::link( $t, $this->msg( 'restoreprefs' )->escaped(),
-				$attrs );
+				Html::buttonAttributes( $attrs, array( 'mw-ui-quiet' ) ) );
 
 			$html = Xml::tags( 'div', array( 'class' => 'mw-prefs-buttons' ), $html );
 		}

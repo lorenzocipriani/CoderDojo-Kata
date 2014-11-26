@@ -44,12 +44,13 @@ module.exports = function ( grunt ) {
 		jsonlint: {
 			all: [
 				'.jscsrc',
-				'{languages,languages,maintenance,resources}/**/*.json',
+				'{languages,maintenance,resources}/**/*.json',
 				'tests/frontend/package.json'
 			]
 		},
 		banana: {
 			core: 'languages/i18n/',
+			api: 'includes/api/i18n/',
 			installer: 'includes/installer/i18n/'
 		},
 		watch: {

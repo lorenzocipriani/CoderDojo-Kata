@@ -42,7 +42,7 @@ class ApiMain extends ApiBase {
 	/**
 	 * When no format parameter is given, this format will be used
 	 */
-	const API_DEFAULT_FORMAT = 'xmlfm';
+	const API_DEFAULT_FORMAT = 'jsonfm';
 
 	/**
 	 * List of available modules: action name => module class
@@ -121,11 +121,11 @@ class ApiMain extends ApiBase {
 	 */
 	private static $mRights = array(
 		'writeapi' => array(
-			'msg' => 'Use of the write API',
+			'msg' => 'right-writeapi',
 			'params' => array()
 		),
 		'apihighlimits' => array(
-			'msg' => 'Use higher limits in API queries (Slow queries: $1 results; Fast queries: $2 results). The limits for slow queries also apply to multivalue parameters.',
+			'msg' => 'api-help-right-apihighlimits',
 			'params' => array( ApiBase::LIMIT_SML2, ApiBase::LIMIT_BIG2 )
 		)
 	);
@@ -185,6 +185,23 @@ class ApiMain extends ApiBase {
 				$wgUser = new User();
 				$this->getContext()->setUser( $wgUser );
 			}
+		}
+
+		$uselang = $this->getParameter( 'uselang' );
+		if ( $uselang === 'user' ) {
+			$uselang = $this->getUser()->getOption( 'language' );
+			$uselang = RequestContext::sanitizeLangCode( $uselang );
+			wfRunHooks( 'UserGetLanguageObject', array( $this->getUser(), &$uselang, $this ) );
+		} elseif ( $uselang === 'content' ) {
+			global $wgContLang;
+			$uselang = $wgContLang->getCode();
+		}
+		$code = RequestContext::sanitizeLangCode( $uselang );
+		$this->getContext()->setLanguage( $code );
+		if ( !$this->mInternalMode ) {
+			global $wgLang;
+			$wgLang = $this->getContext()->getLanguage();
+			RequestContext::getMain()->setLanguage( $wgLang );
 		}
 
 		$config = $this->getConfig();
@@ -290,6 +307,16 @@ class ApiMain extends ApiBase {
 			}
 		}
 
+		if ( $mode === 'public' && $this->getParameter( 'uselang' ) === 'user' ) {
+			// User language is used for i18n, so we don't want to publicly
+			// cache. Anons are ok, because if they have non-default language
+			// then there's an appropriate Vary header set by whatever set
+			// their non-default language.
+			wfDebug( __METHOD__ . ": downgrading cache mode 'public' to " .
+				"'anon-public-user-private' due to uselang=user\n" );
+			$mode = 'anon-public-user-private';
+		}
+
 		wfDebug( __METHOD__ . ": setting cache mode $mode\n" );
 		$this->mCacheMode = $mode;
 	}
@@ -372,10 +399,6 @@ class ApiMain extends ApiBase {
 		// Send cache headers after any code which might generate an error, to
 		// avoid sending public cache headers for errors.
 		$this->sendCacheHeaders();
-
-		if ( $this->mPrinter->getIsHtml() && !$this->mPrinter->isDisabled() ) {
-			echo wfReportTime();
-		}
 
 		ob_end_flush();
 	}
@@ -670,13 +693,10 @@ class ApiMain extends ApiBase {
 		$config = $this->getConfig();
 
 		if ( $e instanceof UsageException ) {
-			// User entered incorrect parameters - print usage screen
+			// User entered incorrect parameters - generate error response
 			$errMessage = $e->getMessageArray();
-
-			// Only print the help message when this is for the developer, not runtime
-			if ( $this->mPrinter->getWantsHelp() || $this->mAction == 'help' ) {
-				ApiResult::setContent( $errMessage, $this->makeHelpMsg() );
-			}
+			$link = wfExpandUrl( wfScript( 'api' ) );
+			ApiResult::setContent( $errMessage, "See $link for API usage" );
 		} else {
 			// Something is seriously wrong
 			if ( ( $e instanceof DBQueryError ) && !$config->get( 'ShowSQLErrors' ) ) {
@@ -1084,15 +1104,7 @@ class ApiMain extends ApiBase {
 		$printer = $this->mPrinter;
 		$printer->profileIn();
 
-		/**
-		 * If the help message is requested in the default (xmlfm) format,
-		 * tell the printer not to escape ampersands so that our links do
-		 * not break.
-		 */
-		$isHelp = $isError || $this->mAction == 'help';
-		$printer->setUnescapeAmps( $isHelp && $printer->getFormat() == 'XML' && $printer->getIsHtml() );
-
-		$printer->initPrinter( $isHelp );
+		$printer->initPrinter( false );
 
 		$printer->execute();
 		$printer->closePrinter();
@@ -1113,12 +1125,12 @@ class ApiMain extends ApiBase {
 	 */
 	public function getAllowedParams() {
 		return array(
-			'format' => array(
-				ApiBase::PARAM_DFLT => ApiMain::API_DEFAULT_FORMAT,
-				ApiBase::PARAM_TYPE => 'submodule',
-			),
 			'action' => array(
 				ApiBase::PARAM_DFLT => 'help',
+				ApiBase::PARAM_TYPE => 'submodule',
+			),
+			'format' => array(
+				ApiBase::PARAM_DFLT => ApiMain::API_DEFAULT_FORMAT,
 				ApiBase::PARAM_TYPE => 'submodule',
 			),
 			'maxlag' => array(
@@ -1139,126 +1151,121 @@ class ApiMain extends ApiBase {
 			'servedby' => false,
 			'curtimestamp' => false,
 			'origin' => null,
-		);
-	}
-
-	/**
-	 * See ApiBase for description.
-	 *
-	 * @return array
-	 */
-	public function getParamDescription() {
-		return array(
-			'format' => 'The format of the output',
-			'action' => 'What action you would like to perform. See below for module help',
-			'maxlag' => array(
-				'Maximum lag can be used when MediaWiki is installed on a database replicated cluster.',
-				'To save actions causing any more site replication lag, this parameter can make the client',
-				'wait until the replication lag is less than the specified value.',
-				'In case of a replag error, error code "maxlag" is returned, with the message like',
-				'"Waiting for $host: $lag seconds lagged\n".',
-				'See https://www.mediawiki.org/wiki/Manual:Maxlag_parameter for more information',
-			),
-			'smaxage' => 'Set the s-maxage header to this many seconds. Errors are never cached',
-			'maxage' => 'Set the max-age header to this many seconds. Errors are never cached',
-			'assert' => 'Verify the user is logged in if set to "user", or has the bot userright if "bot"',
-			'requestid' => 'Request ID to distinguish requests. This will just be output back to you',
-			'servedby' => 'Include the hostname that served the request in the ' .
-				'results. Unconditionally shown on error',
-			'curtimestamp' => 'Include the current timestamp in the result.',
-			'origin' => array(
-				'When accessing the API using a cross-domain AJAX request (CORS), set this to the',
-				'originating domain. This must be included in any pre-flight request, and',
-				'therefore must be part of the request URI (not the POST body). This must match',
-				'one of the origins in the Origin: header exactly, so it has to be set to ',
-				'something like http://en.wikipedia.org or https://meta.wikimedia.org . If this',
-				'parameter does not match the Origin: header, a 403 response will be returned. If',
-				'this parameter matches the Origin: header and the origin is whitelisted, an',
-				'Access-Control-Allow-Origin header will be set.',
+			'uselang' => array(
+				ApiBase::PARAM_DFLT => 'user',
 			),
 		);
 	}
 
-	/**
-	 * See ApiBase for description.
-	 *
-	 * @return array
-	 */
-	public function getDescription() {
+	/** @see ApiBase::getExamplesMessages() */
+	protected function getExamplesMessages() {
 		return array(
-			'',
-			'',
-			'**********************************************************************************************',
-			'**                                                                                          **',
-			'**                This is an auto-generated MediaWiki API documentation page                **',
-			'**                                                                                          **',
-			'**                               Documentation and Examples:                                **',
-			'**                            https://www.mediawiki.org/wiki/API                            **',
-			'**                                                                                          **',
-			'**********************************************************************************************',
-			'',
-			'Status:                All features shown on this page should be working, but the API',
-			'                       is still in active development, and may change at any time.',
-			'                       Make sure to monitor our mailing list for any updates.',
-			'',
-			'Erroneous requests:    When erroneous requests are sent to the API, a HTTP header will be sent',
-			'                       with the key "MediaWiki-API-Error" and then both the value of the',
-			'                       header and the error code sent back will be set to the same value.',
-			'',
-			'                       In the case of an invalid action being passed, these will have a value',
-			'                       of "unknown_action".',
-			'',
-			'                       For more information see https://www.mediawiki.org' .
-				'/wiki/API:Errors_and_warnings',
-			'',
-			'Documentation:         https://www.mediawiki.org/wiki/API:Main_page',
-			'FAQ                    https://www.mediawiki.org/wiki/API:FAQ',
-			'Mailing list:          https://lists.wikimedia.org/mailman/listinfo/mediawiki-api',
-			'Api Announcements:     https://lists.wikimedia.org/mailman/listinfo/mediawiki-api-announce',
-			'Bugs & Requests:       https://bugzilla.wikimedia.org/buglist.cgi?component=API&' .
-				'bug_status=NEW&bug_status=ASSIGNED&bug_status=REOPENED&order=bugs.delta_ts',
-			'',
-			'',
-			'',
-			'',
-			'',
+			'action=help'
+				=> 'apihelp-help-example-main',
+			'action=help&recursivesubmodules=1'
+				=> 'apihelp-help-example-recursive',
 		);
 	}
 
-	/**
-	 * Returns an array of strings with credits for the API
-	 * @return array
-	 */
-	protected function getCredits() {
-		return array(
-			'API developers:',
-			'    Roan Kattouw (lead developer Sep 2007-2009)',
-			'    Victor Vasiliev',
-			'    Bryan Tong Minh',
-			'    Sam Reed',
-			'    Yuri Astrakhan (creator, lead developer Sep 2006-Sep 2007, 2012-2013)',
-			'    Brad Jorsch (lead developer 2013-now)',
-			'',
-			'Please send your comments, suggestions and questions to mediawiki-api@lists.wikimedia.org',
-			'or file a bug report at https://bugzilla.wikimedia.org/'
-		);
+	public function modifyHelp( array &$help, array $options ) {
+		// Wish PHP had an "array_insert_before". Instead, we have to manually
+		// reindex the array to get 'permissions' in the right place.
+		$oldHelp = $help;
+		$help = array();
+		foreach ( $oldHelp as $k => $v ) {
+			if ( $k === 'submodules' ) {
+				$help['permissions'] = '';
+			}
+			$help[$k] = $v;
+		}
+		$help['credits'] = '';
+
+		// Fill 'permissions'
+		$help['permissions'] .= Html::openElement( 'div',
+			array( 'class' => 'apihelp-block apihelp-permissions' ) );
+		$m = $this->msg( 'api-help-permissions' );
+		if ( !$m->isDisabled() ) {
+			$help['permissions'] .= Html::rawElement( 'div', array( 'class' => 'apihelp-block-head' ),
+				$m->numParams( count( self::$mRights ) )->parse()
+			);
+		}
+		$help['permissions'] .= Html::openElement( 'dl' );
+		foreach ( self::$mRights as $right => $rightMsg ) {
+			$help['permissions'] .= Html::element( 'dt', null, $right );
+
+			$rightMsg = $this->msg( $rightMsg['msg'], $rightMsg['params'] )->parse();
+			$help['permissions'] .= Html::rawElement( 'dd', null, $rightMsg );
+
+			$groups = array_map( function ( $group ) {
+				return $group == '*' ? 'all' : $group;
+			}, User::getGroupsWithPermission( $right ) );
+
+			$help['permissions'] .= Html::rawElement( 'dd', null,
+				$this->msg( 'api-help-permissions-granted-to' )
+					->numParams( count( $groups ) )
+					->params( $this->getLanguage()->commaList( $groups ) )
+					->parse()
+			);
+		}
+		$help['permissions'] .= Html::closeElement( 'dl' );
+		$help['permissions'] .= Html::closeElement( 'div' );
+
+		// Fill 'credits', if applicable
+		if ( empty( $options['nolead'] ) ) {
+			$help['credits'] .= Html::element( 'h' . min( 6, $options['headerlevel'] + 1 ),
+				array( 'id' => '+credits', 'class' => 'apihelp-header' ),
+				$this->msg( 'api-credits-header' )->parse()
+			);
+			$help['credits'] .= $this->msg( 'api-credits' )->useDatabase( false )->parseAsBlock();
+		}
 	}
+
+	private $mCanApiHighLimits = null;
+
+	/**
+	 * Check whether the current user is allowed to use high limits
+	 * @return bool
+	 */
+	public function canApiHighLimits() {
+		if ( !isset( $this->mCanApiHighLimits ) ) {
+			$this->mCanApiHighLimits = $this->getUser()->isAllowed( 'apihighlimits' );
+		}
+
+		return $this->mCanApiHighLimits;
+	}
+
+	/**
+	 * Overrides to return this instance's module manager.
+	 * @return ApiModuleManager
+	 */
+	public function getModuleManager() {
+		return $this->mModuleMgr;
+	}
+
+	/************************************************************************//**
+	 * @name   Deprecated
+	 * @{
+	 */
 
 	/**
 	 * Sets whether the pretty-printer should format *bold* and $italics$
 	 *
+	 * @deprecated since 1.25
 	 * @param bool $help
 	 */
 	public function setHelp( $help = true ) {
+		wfDeprecated( __METHOD__, '1.25' );
 		$this->mPrinter->setHelp( $help );
 	}
 
 	/**
 	 * Override the parent to generate help messages for all available modules.
 	 *
+	 * @deprecated since 1.25
 	 * @return string
 	 */
 	public function makeHelpMsg() {
+		wfDeprecated( __METHOD__, '1.25' );
 		global $wgMemc;
 		$this->setHelp();
 		// Get help text from cache if present
@@ -1281,9 +1288,11 @@ class ApiMain extends ApiBase {
 	}
 
 	/**
+	 * @deprecated since 1.25
 	 * @return mixed|string
 	 */
 	public function reallyMakeHelpMsg() {
+		wfDeprecated( __METHOD__, '1.25' );
 		$this->setHelp();
 
 		// Use parent to make default message for the main module
@@ -1305,8 +1314,12 @@ class ApiMain extends ApiBase {
 
 		$msg .= "\n$astriks Permissions $astriks\n\n";
 		foreach ( self::$mRights as $right => $rightMsg ) {
+			$rightsMsg = $this->msg( $rightMsg['msg'], $rightMsg['params'] )
+				->useDatabase( false )
+				->inLanguage( 'en' )
+				->text();
 			$groups = User::getGroupsWithPermission( $right );
-			$msg .= "* " . $right . " *\n  " . wfMsgReplaceArgs( $rightMsg['msg'], $rightMsg['params'] ) .
+			$msg .= "* " . $right . " *\n  $rightsMsg" .
 				"\nGranted to:\n  " . str_replace( '*', 'all', implode( ', ', $groups ) ) . "\n\n";
 		}
 
@@ -1321,38 +1334,28 @@ class ApiMain extends ApiBase {
 			$msg .= "\n";
 		}
 
-		$msg .= "\n*** Credits: ***\n   " . implode( "\n   ", $this->getCredits() ) . "\n";
+		$credits = $this->msg( 'api-credits' )->useDatabase( 'false' )->inLanguage( 'en' )->text();
+		$credits = str_replace( "\n", "\n   ", $credits );
+		$msg .= "\n*** Credits: ***\n   $credits\n";
 
 		return $msg;
 	}
 
 	/**
+	 * @deprecated since 1.25
 	 * @param ApiBase $module
 	 * @param string $paramName What type of request is this? e.g. action,
 	 *    query, list, prop, meta, format
 	 * @return string
 	 */
 	public static function makeHelpMsgHeader( $module, $paramName ) {
+		wfDeprecated( __METHOD__, '1.25' );
 		$modulePrefix = $module->getModulePrefix();
 		if ( strval( $modulePrefix ) !== '' ) {
 			$modulePrefix = "($modulePrefix) ";
 		}
 
 		return "* $paramName={$module->getModuleName()} $modulePrefix*";
-	}
-
-	private $mCanApiHighLimits = null;
-
-	/**
-	 * Check whether the current user is allowed to use high limits
-	 * @return bool
-	 */
-	public function canApiHighLimits() {
-		if ( !isset( $this->mCanApiHighLimits ) ) {
-			$this->mCanApiHighLimits = $this->getUser()->isAllowed( 'apihighlimits' );
-		}
-
-		return $this->mCanApiHighLimits;
 	}
 
 	/**
@@ -1364,14 +1367,6 @@ class ApiMain extends ApiBase {
 		wfDeprecated( __METHOD__, '1.21' );
 
 		return false;
-	}
-
-	/**
-	 * Overrides to return this instance's module manager.
-	 * @return ApiModuleManager
-	 */
-	public function getModuleManager() {
-		return $this->mModuleMgr;
 	}
 
 	/**
@@ -1418,11 +1413,13 @@ class ApiMain extends ApiBase {
 	public function getFormats() {
 		return $this->getModuleManager()->getNamesWithClasses( 'format' );
 	}
+
+	/**@}*/
+
 }
 
 /**
  * This exception will be thrown when dieUsage is called to stop module execution.
- * The exception handling code will print a help screen explaining how this API may be used.
  *
  * @ingroup API
  */
@@ -1476,3 +1473,8 @@ class UsageException extends MWException {
 		return "{$this->getCodeString()}: {$this->getMessage()}";
 	}
 }
+
+/**
+ * For really cool vim folding this needs to be at the end:
+ * vim: foldmarker=@{,@} foldmethod=marker
+ */

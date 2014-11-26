@@ -6,7 +6,7 @@
  * MW_NO_SETUP is defined.
  *
  * Setup.php (if loaded) then sets up GlobalFunctions, the AutoLoader,
- * and the configuration globals (though not $wgTitle).
+ * and the configuration globals.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -58,8 +58,8 @@ if ( $IP === false ) {
 	$IP = realpath( '.' ) ?: dirname( __DIR__ );
 }
 
-# Load the profiler
-require_once "$IP/includes/profiler/Profiler.php";
+# Grab profiling functions
+require_once "$IP/includes/profiler/ProfilerFunctions.php";
 $wgRUstart = wfGetRusage() ?: array();
 
 # Start the autoloader, so that extensions can derive classes from core files
@@ -111,7 +111,7 @@ wfProfileIn( 'WebStart.php-ob_start' );
 # Check that there is no previous output or previously set up buffers, because
 # that would cause us to potentially mix gzip and non-gzip output, creating a
 # big mess.
-if ( !defined( 'MW_NO_OUTPUT_BUFFER' ) && ob_get_level() == 0 ) {
+if ( ob_get_level() == 0 ) {
 	require_once "$IP/includes/OutputHandler.php";
 	ob_start( 'wfOutputHandler' );
 }

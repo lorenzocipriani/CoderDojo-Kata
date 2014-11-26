@@ -105,9 +105,27 @@ class LoginForm extends SpecialPage {
 	 * @param WebRequest $request
 	 */
 	public function __construct( $request = null ) {
+		global $wgUseMediaWikiUIEverywhere;
 		parent::__construct( 'Userlogin' );
 
 		$this->mOverrideRequest = $request;
+		// Override UseMediaWikiEverywhere to true, to force login and create form to use mw ui
+		$wgUseMediaWikiUIEverywhere = true;
+	}
+
+	/**
+	 * Returns an array of all valid error messages.
+	 *
+	 * @return array
+	 */
+	public static function getValidErrorMessages() {
+		static $messages = null;
+		if ( !$messages ) {
+			$messages = self::$validErrorMessages;
+			wfRunHooks( 'LoginFormValidErrorMessages', array( &$messages ) );
+		}
+
+		return $messages;
 	}
 
 	/**
@@ -172,13 +190,13 @@ class LoginForm extends SpecialPage {
 
 		// Only show valid error or warning messages.
 		if ( $entryError->exists()
-			&& in_array( $entryError->getKey(), self::$validErrorMessages )
+			&& in_array( $entryError->getKey(), self::getValidErrorMessages() )
 		) {
 			$this->mEntryErrorType = 'error';
 			$this->mEntryError = $entryError->rawParams( $loginreqlink )->escaped();
 
 		} elseif ( $entryWarning->exists()
-			&& in_array( $entryWarning->getKey(), self::$validErrorMessages )
+			&& in_array( $entryWarning->getKey(), self::getValidErrorMessages() )
 		) {
 			$this->mEntryErrorType = 'warning';
 			$this->mEntryError = $entryWarning->rawParams( $loginreqlink )->escaped();
@@ -509,20 +527,8 @@ class LoginForm extends SpecialPage {
 			return Status::newFatal( 'sorbs_create_account_reason' );
 		}
 
-		// Normalize the name so that silly things don't cause "invalid username"
-		// errors. User::newFromName does some rather strict checking, rejecting
-		// e.g. leading/trailing/multiple spaces. But first we need to reject
-		// usernames that would be treated as titles with a fragment part.
-		if ( strpos( $this->mUsername, '#' ) !== false ) {
-			return Status::newFatal( 'noname' );
-		}
-		$title = Title::makeTitleSafe( NS_USER, $this->mUsername );
-		if ( !is_object( $title ) ) {
-			return Status::newFatal( 'noname' );
-		}
-
 		# Now create a dummy user ($u) and check if it is valid
-		$u = User::newFromName( $title->getText(), 'creatable' );
+		$u = User::newFromName( $this->mUsername, 'creatable' );
 		if ( !is_object( $u ) ) {
 			return Status::newFatal( 'noname' );
 		} elseif ( 0 != $u->idForName() ) {
@@ -1423,16 +1429,9 @@ class LoginForm extends SpecialPage {
 		}
 
 		$template->set( 'secureLoginUrl', $this->mSecureLoginUrl );
-		// Use loginend-https for HTTPS requests if it's not blank, loginend otherwise
-		// Ditto for signupend.  New forms use neither.
+		// Use signupend-https for HTTPS requests if it's not blank, signupend otherwise
 		$usingHTTPS = $this->mRequest->getProtocol() == 'https';
-		$loginendHTTPS = $this->msg( 'loginend-https' );
 		$signupendHTTPS = $this->msg( 'signupend-https' );
-		if ( $usingHTTPS && !$loginendHTTPS->isBlank() ) {
-			$template->set( 'loginend', $loginendHTTPS->parse() );
-		} else {
-			$template->set( 'loginend', $this->msg( 'loginend' )->parse() );
-		}
 		if ( $usingHTTPS && !$signupendHTTPS->isBlank() ) {
 			$template->set( 'signupend', $signupendHTTPS->parse() );
 		} else {

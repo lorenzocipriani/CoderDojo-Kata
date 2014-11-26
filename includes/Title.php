@@ -503,7 +503,7 @@ class Title {
 		}
 
 		$t = new Title();
-		$t->mDbkeyform = Title::makeName( $ns, $title, $fragment, $interwiki );
+		$t->mDbkeyform = Title::makeName( $ns, $title, $fragment, $interwiki, true );
 		if ( $t->secureAndSplit() ) {
 			return $t;
 		} else {
@@ -747,12 +747,20 @@ class Title {
 	 * @param string $title The DB key form the title
 	 * @param string $fragment The link fragment (after the "#")
 	 * @param string $interwiki The interwiki prefix
+	 * @param boolean $canoncialNamespace If true, use the canonical name for
+	 *   $ns instead of the localized version.
 	 * @return string The prefixed form of the title
 	 */
-	public static function makeName( $ns, $title, $fragment = '', $interwiki = '' ) {
+	public static function makeName( $ns, $title, $fragment = '', $interwiki = '',
+		$canoncialNamespace = false
+	) {
 		global $wgContLang;
 
-		$namespace = $wgContLang->getNsText( $ns );
+		if ( $canoncialNamespace ) {
+			$namespace = MWNamespace::getCanonicalName( $ns );
+		} else {
+			$namespace = $wgContLang->getNsText( $ns );
+		}
 		$name = $namespace == '' ? $title : "$namespace:$title";
 		if ( strval( $interwiki ) != '' ) {
 			$name = "$interwiki:$name";
@@ -795,7 +803,8 @@ class Title {
 
 	/**
 	 * Determine whether the object refers to a page within
-	 * this project.
+	 * this project (either this wiki or a wiki with a local
+	 * interwiki, see https://www.mediawiki.org/wiki/Manual:Interwiki_table#iw_local )
 	 *
 	 * @return bool True if this is an in-project interwiki link or a wikilink, false otherwise
 	 */
@@ -2231,19 +2240,13 @@ class Title {
 		} elseif ( $action == 'create' ) {
 			$title_protection = $this->getTitleProtection();
 			if ( $title_protection ) {
-				if ( $title_protection['pt_create_perm'] == 'sysop' ) {
-					$title_protection['pt_create_perm'] = 'editprotected'; // B/C
-				}
-				if ( $title_protection['pt_create_perm'] == 'autoconfirmed' ) {
-					$title_protection['pt_create_perm'] = 'editsemiprotected'; // B/C
-				}
-				if ( $title_protection['pt_create_perm'] == ''
-					|| !$user->isAllowed( $title_protection['pt_create_perm'] )
+				if ( $title_protection['permission'] == ''
+					|| !$user->isAllowed( $title_protection['permission'] )
 				) {
 					$errors[] = array(
 						'titleprotected',
-						User::whoIs( $title_protection['pt_user'] ),
-						$title_protection['pt_reason']
+						User::whoIs( $title_protection['user'] ),
+						$title_protection['reason']
 					);
 				}
 			}
@@ -2535,7 +2538,7 @@ class Title {
 	 * @return array|bool An associative array representing any existent title
 	 *   protection, or false if there's none.
 	 */
-	private function getTitleProtection() {
+	public function getTitleProtection() {
 		// Can't protect pages in special namespaces
 		if ( $this->getNamespace() < 0 ) {
 			return false;
@@ -2550,13 +2553,27 @@ class Title {
 			$dbr = wfGetDB( DB_SLAVE );
 			$res = $dbr->select(
 				'protected_titles',
-				array( 'pt_user', 'pt_reason', 'pt_expiry', 'pt_create_perm' ),
+				array(
+					'user' => 'pt_user',
+					'reason' => 'pt_reason',
+					'expiry' => 'pt_expiry',
+					'permission' => 'pt_create_perm'
+				),
 				array( 'pt_namespace' => $this->getNamespace(), 'pt_title' => $this->getDBkey() ),
 				__METHOD__
 			);
 
 			// fetchRow returns false if there are no rows.
-			$this->mTitleProtection = $dbr->fetchRow( $res );
+			$row = $dbr->fetchRow( $res );
+			if ( $row ) {
+				if ( $row['permission'] == 'sysop' ) {
+					$row['permission'] = 'editprotected'; // B/C
+				}
+				if ( $row['permission'] == 'autoconfirmed' ) {
+					$row['permission'] = 'editsemiprotected'; // B/C
+				}
+			}
+			$this->mTitleProtection = $row;
 		}
 		return $this->mTitleProtection;
 	}
@@ -2977,12 +2994,12 @@ class Title {
 
 				if ( $title_protection ) {
 					$now = wfTimestampNow();
-					$expiry = $wgContLang->formatExpiry( $title_protection['pt_expiry'], TS_MW );
+					$expiry = $wgContLang->formatExpiry( $title_protection['expiry'], TS_MW );
 
 					if ( !$expiry || $expiry > $now ) {
 						// Apply the restrictions
 						$this->mRestrictionsExpiry['create'] = $expiry;
-						$this->mRestrictions['create'] = explode( ',', trim( $title_protection['pt_create_perm'] ) );
+						$this->mRestrictions['create'] = explode( ',', trim( $title_protection['permission'] ) );
 					} else { // Get rid of the old restrictions
 						Title::purgeExpiredRestrictions();
 						$this->mTitleProtection = false;
@@ -3578,10 +3595,12 @@ class Title {
 	/**
 	 * Move this page without authentication
 	 *
+	 * @deprecated since 1.25 use MovePage class instead
 	 * @param Title $nt The new page Title
 	 * @return array|bool True on success, getUserPermissionsErrors()-like array on failure
 	 */
 	public function moveNoAuth( &$nt ) {
+		wfDeprecated( __METHOD__, '1.25' );
 		return $this->moveTo( $nt, false );
 	}
 
@@ -3589,117 +3608,33 @@ class Title {
 	 * Check whether a given move operation would be valid.
 	 * Returns true if ok, or a getUserPermissionsErrors()-like array otherwise
 	 *
-	 * @todo move this into MovePage
+	 * @deprecated since 1.25, use MovePage's methods instead
 	 * @param Title $nt The new title
-	 * @param bool $auth Indicates whether $wgUser's permissions
-	 *  should be checked
+	 * @param bool $auth Ignored
 	 * @param string $reason Is the log summary of the move, used for spam checking
 	 * @return array|bool True on success, getUserPermissionsErrors()-like array on failure
 	 */
 	public function isValidMoveOperation( &$nt, $auth = true, $reason = '' ) {
-		global $wgUser, $wgContentHandlerUseDB;
+		global $wgUser;
 
-		$errors = array();
-		if ( !$nt ) {
+		if ( !( $nt instanceof Title ) ) {
 			// Normally we'd add this to $errors, but we'll get
 			// lots of syntax errors if $nt is not an object
 			return array( array( 'badtitletext' ) );
 		}
-		if ( $this->equals( $nt ) ) {
-			$errors[] = array( 'selfmove' );
-		}
-		if ( !$this->isMovable() ) {
-			$errors[] = array( 'immobile-source-namespace', $this->getNsText() );
-		}
-		if ( $nt->isExternal() ) {
-			$errors[] = array( 'immobile-target-namespace-iw' );
-		}
-		if ( !$nt->isMovable() ) {
-			$errors[] = array( 'immobile-target-namespace', $nt->getNsText() );
-		}
 
-		$oldid = $this->getArticleID();
-		$newid = $nt->getArticleID();
+		$mp = new MovePage( $this, $nt );
+		$errors = wfMergeErrorArrays(
+			$mp->isValidMove()->getErrorsArray(),
+			$mp->checkPermissions( $wgUser, $reason )->getErrorsArray()
+		);
 
-		if ( strlen( $nt->getDBkey() ) < 1 ) {
-			$errors[] = array( 'articleexists' );
-		}
-		if (
-			( $this->getDBkey() == '' ) ||
-			( !$oldid ) ||
-			( $nt->getDBkey() == '' )
-		) {
-			$errors[] = array( 'badarticleerror' );
-		}
-
-		// Content model checks
-		if ( !$wgContentHandlerUseDB &&
-				$this->getContentModel() !== $nt->getContentModel() ) {
-			// can't move a page if that would change the page's content model
-			$errors[] = array(
-				'bad-target-model',
-				ContentHandler::getLocalizedName( $this->getContentModel() ),
-				ContentHandler::getLocalizedName( $nt->getContentModel() )
-			);
-		}
-
-		// Image-specific checks
-		if ( $this->getNamespace() == NS_FILE ) {
-			$errors = array_merge( $errors, $this->validateFileMoveOperation( $nt ) );
-		}
-
-		if ( $nt->getNamespace() == NS_FILE && $this->getNamespace() != NS_FILE ) {
-			$errors[] = array( 'nonfile-cannot-move-to-file' );
-		}
-
-		if ( $auth ) {
-			$errors = wfMergeErrorArrays( $errors,
-				$this->getUserPermissionsErrors( 'move', $wgUser ),
-				$this->getUserPermissionsErrors( 'edit', $wgUser ),
-				$nt->getUserPermissionsErrors( 'move-target', $wgUser ),
-				$nt->getUserPermissionsErrors( 'edit', $wgUser ) );
-		}
-
-		$match = EditPage::matchSummarySpamRegex( $reason );
-		if ( $match !== false ) {
-			// This is kind of lame, won't display nice
-			$errors[] = array( 'spamprotectiontext' );
-		}
-
-		$err = null;
-		if ( !wfRunHooks( 'AbortMove', array( $this, $nt, $wgUser, &$err, $reason ) ) ) {
-			$errors[] = array( 'hookaborted', $err );
-		}
-
-		# The move is allowed only if (1) the target doesn't exist, or
-		# (2) the target is a redirect to the source, and has no history
-		# (so we can undo bad moves right after they're done).
-
-		if ( 0 != $newid ) { # Target exists; check for validity
-			if ( !$this->isValidMoveTarget( $nt ) ) {
-				$errors[] = array( 'articleexists' );
-			}
-		} else {
-			$tp = $nt->getTitleProtection();
-			$right = $tp['pt_create_perm'];
-			if ( $right == 'sysop' ) {
-				$right = 'editprotected'; // B/C
-			}
-			if ( $right == 'autoconfirmed' ) {
-				$right = 'editsemiprotected'; // B/C
-			}
-			if ( $tp and !$wgUser->isAllowed( $right ) ) {
-				$errors[] = array( 'cantmove-titleprotected' );
-			}
-		}
-		if ( empty( $errors ) ) {
-			return true;
-		}
-		return $errors;
+		return $errors ? : true;
 	}
 
 	/**
 	 * Check if the requested move target is a valid file move target
+	 * @todo move this to MovePage
 	 * @param Title $nt Target title
 	 * @return array List of errors
 	 */
@@ -3707,27 +3642,6 @@ class Title {
 		global $wgUser;
 
 		$errors = array();
-
-		// wfFindFile( $nt ) / wfLocalFile( $nt ) is not allowed until below
-
-		$file = wfLocalFile( $this );
-		if ( $file->exists() ) {
-			if ( $nt->getText() != wfStripIllegalFilenameChars( $nt->getText() ) ) {
-				$errors[] = array( 'imageinvalidfilename' );
-			}
-			if ( !File::checkExtensionCompatibility( $file, $nt->getDBkey() ) ) {
-				$errors[] = array( 'imagetypemismatch' );
-			}
-		}
-
-		if ( $nt->getNamespace() != NS_FILE ) {
-			$errors[] = array( 'imagenocrossnamespace' );
-			// From here we want to do checks on a file object, so if we can't
-			// create one, we must return.
-			return $errors;
-		}
-
-		// wfFindFile( $nt ) / wfLocalFile( $nt ) is allowed below here
 
 		$destFile = wfLocalFile( $nt );
 		if ( !$wgUser->isAllowed( 'reupload-shared' ) && !$destFile->exists() && wfFindFile( $nt ) ) {
@@ -3740,7 +3654,7 @@ class Title {
 	/**
 	 * Move a title to a new location
 	 *
-	 * @todo Deprecate this in favor of MovePage
+	 * @deprecated since 1.25, use the MovePage class instead
 	 * @param Title $nt The new title
 	 * @param bool $auth Indicates whether $wgUser's permissions
 	 *  should be checked
@@ -3761,8 +3675,6 @@ class Title {
 		if ( $auth && !$wgUser->isAllowed( 'suppressredirect' ) ) {
 			$createRedirect = true;
 		}
-
-		wfRunHooks( 'TitleMove', array( $this, $nt, $wgUser ) );
 
 		$mp = new MovePage( $this, $nt );
 		$status = $mp->move( $wgUser, $reason, $createRedirect );
@@ -3899,6 +3811,7 @@ class Title {
 	 * Checks if $this can be moved to a given Title
 	 * - Selects for update, so don't call it unless you mean business
 	 *
+	 * @deprecated since 1.25, use MovePage's methods instead
 	 * @param Title $nt The new title to check
 	 * @return bool
 	 */

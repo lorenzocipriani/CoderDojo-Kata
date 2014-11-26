@@ -160,6 +160,15 @@ class Status {
 	}
 
 	/**
+	 * Don't save the callback when serializing, because Closures can't be
+	 * serialized and we're going to clear it in __wakeup anyway.
+	 */
+	public function __sleep() {
+		$keys = array_keys( get_object_vars( $this ) );
+		return array_diff( $keys, array( 'cleanCallback' ) );
+	}
+
+	/**
 	 * Sanitize the callback parameter on wakeup, to avoid arbitrary execution.
 	 */
 	public function __wakeup() {
@@ -184,9 +193,9 @@ class Status {
 	/**
 	 * Get the error list as a wikitext formatted list
 	 *
-	 * @param string $shortContext A short enclosing context message name, to
+	 * @param string|bool $shortContext A short enclosing context message name, to
 	 *        be used when there is a single error
-	 * @param string $longContext A long enclosing context message name, for a list
+	 * @param string|bool $longContext A long enclosing context message name, for a list
 	 * @return string
 	 */
 	public function getWikiText( $shortContext = false, $longContext = false ) {
@@ -360,14 +369,14 @@ class Status {
 	}
 
 	/**
-	 * Returns a list of status messages of the given type
+	 * Returns a list of status messages of the given type (or all if false)
 	 * @param string $type
 	 * @return array
 	 */
-	protected function getStatusArray( $type ) {
+	protected function getStatusArray( $type = false ) {
 		$result = array();
 		foreach ( $this->errors as $error ) {
-			if ( $error['type'] === $type ) {
+			if ( $type === false || $error['type'] === $type ) {
 				if ( $error['message'] instanceof Message ) {
 					$result[] = array_merge(
 						array( $error['message']->getKey() ),
@@ -452,5 +461,46 @@ class Status {
 	 */
 	public function getValue() {
 		return $this->value;
+	}
+
+	/**
+	 * @return string
+	 */
+	public function __toString() {
+		$status = $this->isOK() ? "OK" : "Error";
+		if ( count( $this->errors ) ) {
+			$errorcount = "collected " . ( count($this->errors) ) . " error(s) on the way";
+		} else {
+			$errorcount = "no errors detected";
+		}
+		if ( isset( $this->value ) ) {
+			$valstr = gettype( $this->value ) . " value set";
+			if ( is_object( $this->value ) ) {
+				$valstr .= "\"" . get_class( $this->value ) . "\" instance";
+			}
+		} else {
+			$valstr = "no value set";
+		}
+		$out = sprintf( "<%s, %s, %s>",
+			$status,
+			$errorcount,
+			$valstr
+		);
+		if ( count ($this->errors ) > 0 ) {
+			$hdr = sprintf( "+-%'-4s-+-%'-25s-+-%'-40s-+\n", "", "", "" );
+			$i = 1;
+			$out .= "\n";
+			$out .= $hdr;
+			foreach( $this->getStatusArray() as $stat ) {
+				$out .= sprintf( "| %4d | %-25.25s | %-40.40s |\n",
+					$i,
+					$stat[0],
+					implode(" ", array_slice( $stat, 1 ) )
+				);
+				$i += 1;
+			}
+			$out .= $hdr;
+		};
+		return $out;
 	}
 }

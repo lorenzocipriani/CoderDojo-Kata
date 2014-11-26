@@ -109,9 +109,15 @@ class MessageTest extends MediaWikiLangTestCase {
 		$this->assertInstanceOf( 'Message', wfMessage( 'mainpage' ) );
 		$this->assertInstanceOf( 'Message', wfMessage( 'i-dont-exist-evar' ) );
 		$this->assertEquals( 'Main Page', wfMessage( 'mainpage' )->text() );
-		$this->assertEquals( '&lt;i-dont-exist-evar&gt;', wfMessage( 'i-dont-exist-evar' )->text() );
+		$this->assertEquals( '<i-dont-exist-evar>', wfMessage( 'i-dont-exist-evar' )->text() );
+		$this->assertEquals( '<i<dont>exist-evar>', wfMessage( 'i<dont>exist-evar' )->text() );
 		$this->assertEquals( '<i-dont-exist-evar>', wfMessage( 'i-dont-exist-evar' )->plain() );
+		$this->assertEquals( '<i<dont>exist-evar>', wfMessage( 'i<dont>exist-evar' )->plain() );
 		$this->assertEquals( '&lt;i-dont-exist-evar&gt;', wfMessage( 'i-dont-exist-evar' )->escaped() );
+		$this->assertEquals(
+			'&lt;i&lt;dont&gt;exist-evar&gt;',
+			wfMessage( 'i<dont>exist-evar' )->escaped()
+		);
 	}
 
 	/**
@@ -268,6 +274,55 @@ class MessageTest extends MediaWikiLangTestCase {
 			$lang->formatBitrate( 123456 ),
 			$msg->inLanguage( $lang )->bitrateParams( 123456 )->plain(),
 			'bitrateParams is handled correctly'
+		);
+	}
+
+	public function messagePlaintextParamsProvider() {
+		return array(
+			array(
+				'one $2 <div>foo</div> [[Bar]] {{Baz}} &lt;',
+				'plain',
+			),
+
+			array(
+				// expect
+				'one $2 <div>foo</div> [[Bar]] {{Baz}} &lt;',
+				// format
+				'text',
+			),
+			array(
+				'one $2 &lt;div&gt;foo&lt;/div&gt; [[Bar]] {{Baz}} &amp;lt;',
+				'escaped',
+			),
+
+			array(
+				'one $2 &lt;div&gt;foo&lt;/div&gt; [[Bar]] {{Baz}} &amp;lt;',
+				'parse',
+			),
+
+			array(
+				"<p>one $2 &lt;div&gt;foo&lt;/div&gt; [[Bar]] {{Baz}} &amp;lt;\n</p>",
+				'parseAsBlock',
+			),
+		);
+	}
+
+	/**
+	 * @dataProvider messagePlaintextParamsProvider
+	 * @covers Message::plaintextParams
+	 */
+	public function testMessagePlaintextParams( $expect, $format ) {
+		$lang = Language::factory( 'en' );
+
+		$msg = new RawMessage( '$1 $2' );
+		$params = array(
+			'one $2',
+			'<div>foo</div> [[Bar]] {{Baz}} &lt;',
+		);
+		$this->assertEquals(
+			$expect,
+			$msg->inLanguage( $lang )->plaintextParams( $params )->$format(),
+			"Fail formatting for $format"
 		);
 	}
 

@@ -153,7 +153,8 @@ class MediaStatisticsPage extends QueryPage {
 		);
 		$row .= Html::rawElement(
 			'td',
-			array(),
+			// Make sure js sorts it in numeric order
+			array( 'data-sort-value' => $count ),
 			$this->msg( 'mediastatistics-nfiles' )
 				->numParams( $count )
 				/** @todo Check to be sure this really should have number formatting */
@@ -184,6 +185,9 @@ class MediaStatisticsPage extends QueryPage {
 		// Always show three useful digits
 		if ( $decimal == 0 ) {
 			return '0';
+		}
+		if ( $decimal >= 100 ) {
+			return '100';
 		}
 		$percent = sprintf( "%." . max( 0, 2 - floor( log10( $decimal ) ) ) . "f", $decimal );
 		// Then remove any trailing 0's

@@ -609,6 +609,7 @@ class SpecialEditWatchlist extends UnlistedSpecialPage {
 		$context->setTitle( $this->getPageTitle() ); // Remove subpage
 		$form = new EditWatchlistNormalHTMLForm( $fields, $context );
 		$form->setSubmitTextMsg( 'watchlistedit-normal-submit' );
+		$form->setSubmitDestructive();
 		# Used message keys:
 		# 'accesskey-watchlistedit-normal-submit', 'tooltip-watchlistedit-normal-submit'
 		$form->setSubmitTooltip( 'watchlistedit-normal-submit' );
@@ -628,7 +629,10 @@ class SpecialEditWatchlist extends UnlistedSpecialPage {
 	private function buildRemoveLine( $title ) {
 		$link = Linker::link( $title );
 
-		$tools['talk'] = Linker::link( $title->getTalkPage(), $this->msg( 'talkpagelinktext' )->escaped() );
+		$tools['talk'] = Linker::link(
+			$title->getTalkPage(),
+			$this->msg( 'talkpagelinktext' )->escaped()
+		);
 
 		if ( $title->exists() ) {
 			$tools['history'] = Linker::linkKnown(

@@ -64,7 +64,7 @@ class ApiUpload extends ApiBase {
 				$this->dieUsage( 'No upload module set', 'nomodule' );
 			}
 		} catch ( UploadStashException $e ) { // XXX: don't spam exception log
-			$this->dieUsage( get_class( $e ) . ": " . $e->getMessage(), 'stasherror' );
+			$this->handleStashException( $e );
 		}
 
 		// First check permission to upload
@@ -112,7 +112,7 @@ class ApiUpload extends ApiBase {
 				$result['imageinfo'] = $this->mUpload->getImageInfo( $this->getResult() );
 			}
 		} catch ( UploadStashException $e ) { // XXX: don't spam exception log
-			$this->dieUsage( get_class( $e ) . ": " . $e->getMessage(), 'stasherror' );
+			$this->handleStashException( $e );
 		}
 
 		$this->getResult()->addValue( null, $this->getModuleName(), $result );
@@ -159,6 +159,8 @@ class ApiUpload extends ApiBase {
 			if ( $warnings && count( $warnings ) > 0 ) {
 				$result['warnings'] = $warnings;
 			}
+		} catch ( UploadStashException $e ) {
+			$this->handleStashException( $e );
 		} catch ( MWException $e ) {
 			$this->dieUsage( $e->getMessage(), 'stashfailed' );
 		}
@@ -180,6 +182,8 @@ class ApiUpload extends ApiBase {
 		try {
 			$result['filekey'] = $this->performStash();
 			$result['sessionkey'] = $result['filekey']; // backwards compatibility
+		} catch ( UploadStashException $e ) {
+			$this->handleStashException( $e );
 		} catch ( MWException $e ) {
 			$result['warnings']['stashfailed'] = $e->getMessage();
 		}
@@ -205,6 +209,8 @@ class ApiUpload extends ApiBase {
 		if ( $this->mParams['offset'] == 0 ) {
 			try {
 				$filekey = $this->performStash();
+			} catch ( UploadStashException $e ) {
+				$this->handleStashException( $e );
 			} catch ( MWException $e ) {
 				// FIXME: Error handling here is wrong/different from rest of this
 				$this->dieUsage( $e->getMessage(), 'stashfailed' );
@@ -223,11 +229,12 @@ class ApiUpload extends ApiBase {
 		// Check we added the last chunk:
 		if ( $this->mParams['offset'] + $chunkSize == $this->mParams['filesize'] ) {
 			if ( $this->mParams['async'] ) {
-				$progress = UploadBase::getSessionStatus( $filekey );
+				$progress = UploadBase::getSessionStatus( $this->getUser(), $filekey );
 				if ( $progress && $progress['result'] === 'Poll' ) {
 					$this->dieUsage( "Chunk assembly already in progress.", 'stashfailed' );
 				}
 				UploadBase::setSessionStatus(
+					$this->getUser(),
 					$filekey,
 					array( 'result' => 'Poll',
 						'stage' => 'queued', 'status' => Status::newGood() )
@@ -281,7 +288,8 @@ class ApiUpload extends ApiBase {
 		} catch ( MWException $e ) {
 			$message = 'Stashing temporary file failed: ' . get_class( $e ) . ' ' . $e->getMessage();
 			wfDebug( __METHOD__ . ' ' . $message . "\n" );
-			throw new MWException( $message );
+			$className = get_class( $e );
+			throw new $className( $message );
 		}
 
 		return $fileKey;
@@ -327,7 +335,7 @@ class ApiUpload extends ApiBase {
 
 		// Status report for "upload to stash"/"upload from stash"
 		if ( $this->mParams['filekey'] && $this->mParams['checkstatus'] ) {
-			$progress = UploadBase::getSessionStatus( $this->mParams['filekey'] );
+			$progress = UploadBase::getSessionStatus( $this->getUser(), $this->mParams['filekey'] );
 			if ( !$progress ) {
 				$this->dieUsage( 'No result in status data', 'missingresult' );
 			} elseif ( !$progress['status']->isGood() ) {
@@ -576,6 +584,41 @@ class ApiUpload extends ApiBase {
 	}
 
 	/**
+	 * Handles a stash exception, giving a useful error to the user.
+	 * @param Exception $e The exception we encountered.
+	 */
+	protected function handleStashException( $e ) {
+		$exceptionType = get_class( $e );
+
+		switch ( $exceptionType ) {
+			case 'UploadStashFileNotFoundException':
+				$this->dieUsage( 'Could not find the file in the stash: ' . $e->getMessage(), 'stashedfilenotfound' );
+				break;
+			case 'UploadStashBadPathException':
+				$this->dieUsage( 'File key of improper format or otherwise invalid: ' . $e->getMessage(), 'stashpathinvalid' );
+				break;
+			case 'UploadStashFileException':
+				$this->dieUsage( 'Could not store upload in the stash: ' . $e->getMessage(), 'stashfilestorage' );
+				break;
+			case 'UploadStashZeroLengthFileException':
+				$this->dieUsage( 'File is of zero length, and could not be stored in the stash: ' . $e->getMessage(), 'stashzerolength' );
+				break;
+			case 'UploadStashNotLoggedInException':
+				$this->dieUsage( 'Not logged in: ' . $e->getMessage(), 'stashnotloggedin' );
+				break;
+			case 'UploadStashWrongOwnerException':
+				$this->dieUsage( 'Wrong owner: ' . $e->getMessage(), 'stashwrongowner' );
+				break;
+			case 'UploadStashNoSuchKeyException':
+				$this->dieUsage( 'No such filekey: ' . $e->getMessage(), 'stashnosuchfilekey' );
+				break;
+			default:
+				$this->dieUsage( $exceptionType . ": " . $e->getMessage(), 'stasherror' );
+				break;
+		}
+	}
+
+	/**
 	 * Perform the actual upload. Returns a suitable result array on success;
 	 * dies on failure.
 	 *
@@ -612,11 +655,12 @@ class ApiUpload extends ApiBase {
 
 		// No errors, no warnings: do the upload
 		if ( $this->mParams['async'] ) {
-			$progress = UploadBase::getSessionStatus( $this->mParams['filekey'] );
+			$progress = UploadBase::getSessionStatus( $this->getUser(), $this->mParams['filekey'] );
 			if ( $progress && $progress['result'] === 'Poll' ) {
 				$this->dieUsage( "Upload from stash already in progress.", 'publishfailed' );
 			}
 			UploadBase::setSessionStatus(
+				$this->getUser(),
 				$this->mParams['filekey'],
 				array( 'result' => 'Poll', 'stage' => 'queued', 'status' => Status::newGood() )
 			);
@@ -730,59 +774,17 @@ class ApiUpload extends ApiBase {
 		return $params;
 	}
 
-	public function getParamDescription() {
-		$params = array(
-			'filename' => 'Target filename',
-			'comment' => 'Upload comment. Also used as the initial page text for new ' .
-				'files if "text" is not specified',
-			'text' => 'Initial page text for new files',
-			'watch' => 'Watch the page',
-			'watchlist' => 'Unconditionally add or remove the page from your watchlist, ' .
-				'use preferences or do not change watch',
-			'ignorewarnings' => 'Ignore any warnings',
-			'file' => 'File contents',
-			'url' => 'URL to fetch the file from',
-			'filekey' => 'Key that identifies a previous upload that was stashed temporarily.',
-			'sessionkey' => 'Same as filekey, maintained for backward compatibility.',
-			'stash' => 'If set, the server will not add the file to the repository ' .
-				'and stash it temporarily.',
-
-			'chunk' => 'Chunk contents',
-			'offset' => 'Offset of chunk in bytes',
-			'filesize' => 'Filesize of entire upload',
-
-			'async' => 'Make potentially large file operations asynchronous when possible',
-			'asyncdownload' => 'Make fetching a URL asynchronous',
-			'leavemessage' => 'If asyncdownload is used, leave a message on the user talk page if finished',
-			'statuskey' => 'Fetch the upload status for this file key (upload by URL)',
-			'checkstatus' => 'Only fetch the upload status for the given file key',
-		);
-
-		return $params;
-	}
-
-	public function getDescription() {
-		return array(
-			'Upload a file, or get the status of pending uploads. Several methods are available:',
-			' * Upload file contents directly, using the "file" parameter',
-			' * Have the MediaWiki server fetch a file from a URL, using the "url" parameter',
-			' * Complete an earlier upload that failed due to warnings, using the "filekey" parameter',
-			'Note that the HTTP POST must be done as a file upload (i.e. using multipart/form-data) when',
-			'sending the "file".',
-		);
-	}
-
 	public function needsToken() {
 		return 'csrf';
 	}
 
-	public function getExamples() {
+	protected function getExamplesMessages() {
 		return array(
-			'api.php?action=upload&filename=Wiki.png' .
-			'&url=http%3A//upload.wikimedia.org/wikipedia/en/b/bc/Wiki.png&token=123ABC'
-				=> 'Upload from a URL',
-			'api.php?action=upload&filename=Wiki.png&filekey=filekey&ignorewarnings=1&token=123ABC'
-				=> 'Complete an upload that failed due to warnings',
+			'action=upload&filename=Wiki.png' .
+				'&url=http%3A//upload.wikimedia.org/wikipedia/en/b/bc/Wiki.png&token=123ABC'
+				=> 'apihelp-upload-example-url',
+			'action=upload&filename=Wiki.png&filekey=filekey&ignorewarnings=1&token=123ABC'
+				=> 'apihelp-upload-example-filekey',
 		);
 	}
 

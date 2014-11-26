@@ -294,12 +294,7 @@
 				ctx,
 				meta,
 				previewSize = 180,
-				thumb = $( '<div id="mw-upload-thumbnail" class="thumb tright">' +
-							'<div class="thumbinner">' +
-								'<div class="mw-small-spinner" style="width: 180px; height: 180px"></div>' +
-								'<div class="thumbcaption"><div class="filename"></div><div class="fileinfo"></div></div>' +
-							'</div>' +
-						'</div>' );
+				thumb = mw.template.get( 'mediawiki.special.upload', 'thumbnail.html' ).render();
 
 			thumb.find( '.filename' ).text( file.name ).end()
 				.find( '.fileinfo' ).text( prettySize( file.size ) ).end();
@@ -562,4 +557,30 @@
 		}
 	} );
 
+	$( function () {
+		// Prevent losing work
+		var allowCloseWindow,
+			$uploadForm = $( '#mw-upload-form' );
+
+		if ( !mw.user.options.get( 'useeditwarning' ) ) {
+			// If the user doesn't want edit warnings, don't set things up.
+			return;
+		}
+
+		$uploadForm.data( 'origtext', $uploadForm.serialize() );
+
+		allowCloseWindow = mw.confirmCloseWindow( {
+			test: function () {
+				return $( '#wpUploadFile' ).get( 0 ).files.length !== 0 ||
+					$uploadForm.data( 'origtext' ) !== $uploadForm.serialize();
+			},
+
+			message: mw.msg( 'editwarning-warning' ),
+			namespace: 'uploadwarning'
+		} );
+
+		$uploadForm.submit( function () {
+			allowCloseWindow();
+		} );
+	} );
 }( mediaWiki, jQuery ) );

@@ -69,8 +69,6 @@ abstract class UploadBase {
 	const WINDOWS_NONASCII_FILENAME = 13;
 	const FILENAME_TOO_LONG = 14;
 
-	const SESSION_STATUS_KEY = 'wsUploadStatusData';
-
 	/**
 	 * @param int $error
 	 * @return string
@@ -426,7 +424,7 @@ abstract class UploadBase {
 	 * @return mixed True of the file is verified, array otherwise.
 	 */
 	protected function verifyFile() {
-		global $wgVerifyMimeType;
+		global $wgVerifyMimeType, $wgDisableUploadScriptChecks;
 		wfProfileIn( __METHOD__ );
 
 		$status = $this->verifyPartialFile();
@@ -445,6 +443,18 @@ abstract class UploadBase {
 				wfProfileOut( __METHOD__ );
 
 				return array( 'filetype-mime-mismatch', $this->mFinalExtension, $mime );
+			}
+		}
+
+		# check for htmlish code and javascript
+		if ( !$wgDisableUploadScriptChecks ) {
+			if ( $this->mFinalExtension == 'svg' || $mime == 'image/svg+xml' ) {
+				$svgStatus = $this->detectScriptInSvg( $this->mTempPath, false );
+				if ( $svgStatus !== false ) {
+					wfProfileOut( __METHOD__ );
+
+					return $svgStatus;
+				}
 			}
 		}
 
@@ -506,7 +516,7 @@ abstract class UploadBase {
 				return array( 'uploadscripted' );
 			}
 			if ( $this->mFinalExtension == 'svg' || $mime == 'image/svg+xml' ) {
-				$svgStatus = $this->detectScriptInSvg( $this->mTempPath );
+				$svgStatus = $this->detectScriptInSvg( $this->mTempPath, true );
 				if ( $svgStatus !== false ) {
 					wfProfileOut( __METHOD__ );
 
@@ -746,11 +756,42 @@ abstract class UploadBase {
 				);
 			}
 			wfRunHooks( 'UploadComplete', array( &$this ) );
+
+			$this->postProcessUpload();
 		}
 
 		wfProfileOut( __METHOD__ );
 
 		return $status;
+	}
+
+	/**
+	 * Perform extra steps after a successful upload.
+	 *
+	 * @since  1.25
+	 */
+	public function postProcessUpload() {
+		global $wgUploadThumbnailRenderMap;
+
+		$jobs = array();
+
+		$sizes = $wgUploadThumbnailRenderMap;
+		rsort( $sizes );
+
+		$file = $this->getLocalFile();
+
+		foreach ( $sizes as $size ) {
+			if ( $file->isVectorized()
+				|| $file->getWidth() > $size ) {
+					$jobs[] = new ThumbnailRenderJob( $file->getTitle(), array(
+						'transformParams' => array( 'width' => $size ),
+					) );
+			}
+		}
+
+		if ( $jobs ) {
+			JobQueueGroup::singleton()->push( $jobs );
+		}
 	}
 
 	/**
@@ -1252,9 +1293,10 @@ abstract class UploadBase {
 
 	/**
 	 * @param string $filename
+	 * @param bool $partial
 	 * @return mixed False of the file is verified (does not contain scripts), array otherwise.
 	 */
-	protected function detectScriptInSvg( $filename ) {
+	protected function detectScriptInSvg( $filename, $partial ) {
 		$this->mSVGNSError = false;
 		$check = new XmlTypeCheck(
 			$filename,
@@ -1264,7 +1306,8 @@ abstract class UploadBase {
 		);
 		if ( $check->wellFormed !== true ) {
 			// Invalid xml (bug 58553)
-			return array( 'uploadinvalidxml' );
+			// But only when non-partial (bug 65724)
+			return $partial ? false : array( 'uploadinvalidxml' );
 		} elseif ( $check->filterMatch ) {
 			if ( $this->mSVGNSError ) {
 				return array( 'uploadscriptednamespace', $this->mSVGNSError );
@@ -1955,29 +1998,38 @@ abstract class UploadBase {
 	}
 
 	/**
-	 * Get the current status of a chunked upload (used for polling).
-	 * The status will be read from the *current* user session.
+	 * Get the current status of a chunked upload (used for polling)
+	 *
+	 * The value will be read from cache.
+	 *
+	 * @param User $user
 	 * @param string $statusKey
 	 * @return Status[]|bool
 	 */
-	public static function getSessionStatus( $statusKey ) {
-		return isset( $_SESSION[self::SESSION_STATUS_KEY][$statusKey] )
-			? $_SESSION[self::SESSION_STATUS_KEY][$statusKey]
-			: false;
+	public static function getSessionStatus( User $user, $statusKey ) {
+		$key = wfMemcKey( 'uploadstatus', $user->getId() ?: md5( $user->getName() ), $statusKey );
+
+		return wfGetCache( CACHE_ANYTHING )->get( $key );
 	}
 
 	/**
-	 * Set the current status of a chunked upload (used for polling).
-	 * The status will be stored in the *current* user session.
+	 * Set the current status of a chunked upload (used for polling)
+	 *
+	 * The value will be set in cache for 1 day
+	 *
+	 * @param User $user
 	 * @param string $statusKey
 	 * @param array|bool $value
 	 * @return void
 	 */
-	public static function setSessionStatus( $statusKey, $value ) {
+	public static function setSessionStatus( User $user, $statusKey, $value ) {
+		$key = wfMemcKey( 'uploadstatus', $user->getId() ?: md5( $user->getName() ), $statusKey );
+
+		$cache = wfGetCache( CACHE_ANYTHING );
 		if ( $value === false ) {
-			unset( $_SESSION[self::SESSION_STATUS_KEY][$statusKey] );
+			$cache->delete( $key );
 		} else {
-			$_SESSION[self::SESSION_STATUS_KEY][$statusKey] = $value;
+			$cache->set( $key, $value, 86400 );
 		}
 	}
 }

@@ -104,17 +104,6 @@ class ApiWatch extends ApiBase {
 
 		$res = array( 'title' => $title->getPrefixedText() );
 
-		// Currently unnecessary, code to act as a safeguard against any change
-		// in current behavior of uselang.
-		// Copy from ApiParse
-		$oldLang = null;
-		if ( isset( $params['uselang'] ) &&
-			$params['uselang'] != $this->getContext()->getLanguage()->getCode()
-		) {
-			$oldLang = $this->getContext()->getLanguage(); // Backup language
-			$this->getContext()->setLanguage( Language::factory( $params['uselang'] ) );
-		}
-
 		if ( $params['unwatch'] ) {
 			$status = UnwatchAction::doUnwatch( $title, $user );
 			if ( $status->isOK() ) {
@@ -129,10 +118,6 @@ class ApiWatch extends ApiBase {
 				$res['message'] = $this->msg( 'addedwatchtext', $title->getPrefixedText() )
 					->title( $title )->parseAsBlock();
 			}
-		}
-
-		if ( !is_null( $oldLang ) ) {
-			$this->getContext()->setLanguage( $oldLang ); // Reset language to $oldLang
 		}
 
 		if ( !$status->isOK() ) {
@@ -176,8 +161,9 @@ class ApiWatch extends ApiBase {
 				ApiBase::PARAM_DEPRECATED => true
 			),
 			'unwatch' => false,
-			'uselang' => null,
-			'continue' => '',
+			'continue' => array(
+				ApiBase::PARAM_HELP_MSG => 'api-help-param-continue',
+			),
 		);
 		if ( $flags ) {
 			$result += $this->getPageSet()->getFinalParams( $flags );
@@ -186,25 +172,14 @@ class ApiWatch extends ApiBase {
 		return $result;
 	}
 
-	public function getParamDescription() {
-		$psModule = $this->getPageSet();
-
-		return $psModule->getParamDescription() + array(
-			'title' => 'The page to (un)watch. use titles instead',
-			'unwatch' => 'If set the page will be unwatched rather than watched',
-			'uselang' => 'Language to show the message in',
-			'continue' => 'When more results are available, use this to continue',
-		);
-	}
-
-	public function getDescription() {
-		return 'Add or remove pages from/to the current user\'s watchlist.';
-	}
-
-	public function getExamples() {
+	protected function getExamplesMessages() {
 		return array(
-			'api.php?action=watch&titles=Main_Page' => 'Watch the page "Main Page"',
-			'api.php?action=watch&titles=Main_Page&unwatch=' => 'Unwatch the page "Main Page"',
+			'action=watch&titles=Main_Page&token=123ABC'
+				=> 'apihelp-watch-example-watch',
+			'action=watch&titles=Main_Page&unwatch=&token=123ABC'
+				=> 'apihelp-watch-example-unwatch',
+			'action=watch&generator=allpages&gapnamespace=0&token=123ABC'
+				=> 'apihelp-watch-example-generator',
 		);
 	}
 

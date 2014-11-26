@@ -69,7 +69,7 @@ class WikiExporter {
 	 * @return string
 	 */
 	public static function schemaVersion() {
-		return "0.9";
+		return "0.10";
 	}
 
 	/**
@@ -480,16 +480,6 @@ class WikiExporter {
  */
 class XmlDumpWriter {
 	/**
-	 * Returns the export schema version.
-	 * @deprecated since 1.20; use WikiExporter::schemaVersion() instead
-	 * @return string
-	 */
-	function schemaVersion() {
-		wfDeprecated( __METHOD__, '1.20' );
-		return WikiExporter::schemaVersion();
-	}
-
-	/**
 	 * Opens the XML output stream's root "<mediawiki>" element.
 	 * This does not include an xml directive, so is safe to include
 	 * as a subelement in a larger XML stream. Namespace and XML Schema
@@ -703,6 +693,9 @@ class XmlDumpWriter {
 			$content_format = $content_handler->getDefaultFormat();
 		}
 
+		$out .= "      " . Xml::element( 'model', null, strval( $content_model ) ) . "\n";
+		$out .= "      " . Xml::element( 'format', null, strval( $content_format ) ) . "\n";
+
 		$text = '';
 		if ( isset( $row->rev_deleted ) && ( $row->rev_deleted & Revision::DELETED_TEXT ) ) {
 			$out .= "      " . Xml::element( 'text', array( 'deleted' => 'deleted' ) ) . "\n";
@@ -728,9 +721,6 @@ class XmlDumpWriter {
 		} else {
 			$out .= "      <sha1/>\n";
 		}
-
-		$out .= "      " . Xml::element( 'model', null, strval( $content_model ) ) . "\n";
-		$out .= "      " . Xml::element( 'format', null, strval( $content_format ) ) . "\n";
 
 		wfRunHooks( 'XmlDumpWriterWriteRevision', array( &$this, &$out, $row, $text ) );
 

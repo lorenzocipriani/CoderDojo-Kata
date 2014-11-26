@@ -144,6 +144,12 @@ class Language {
 	static private $fallbackLanguageCache = array();
 
 	/**
+	 * Cache for language names
+	 * @var MapCacheLRU|null
+	 */
+	static private $languageNameCache;
+
+	/**
 	 * Get a cached or new language object for a given language code
 	 * @param string $code
 	 * @return Language
@@ -731,6 +737,8 @@ class Language {
 	}
 
 	/**
+	 * @deprecated since 1.24, doesn't handle conflicting aliases. Use
+	 *   SpecialPageFactory::getLocalNameFor instead.
 	 * @param string $name
 	 * @return string
 	 */
@@ -846,6 +854,33 @@ class Language {
 	 * @since 1.20
 	 */
 	public static function fetchLanguageNames( $inLanguage = null, $include = 'mw' ) {
+		wfProfileIn( __METHOD__ );
+		$cacheKey = $inLanguage === null ? 'null' : $inLanguage;
+		$cacheKey .= ":$include";
+		if ( self::$languageNameCache === null ) {
+			self::$languageNameCache = new MapCacheLRU( 20 );
+		}
+		if ( self::$languageNameCache->has( $cacheKey ) ) {
+			$ret = self::$languageNameCache->get( $cacheKey );
+		} else {
+			$ret = self::fetchLanguageNamesUncached( $inLanguage, $include );
+			self::$languageNameCache->set( $cacheKey, $ret );
+		}
+		wfProfileOut( __METHOD__ );
+		return $ret;
+	}
+
+	/**
+	 * Uncached helper for fetchLanguageNames
+	 * @param null|string $inLanguage Code of language in which to return the names
+	 *		Use null for autonyms (native names)
+	 * @param string $include One of:
+	 *		'all' all available languages
+	 *		'mw' only if the language is defined in MediaWiki or wgExtraLanguageNames (default)
+	 *		'mwfile' only if the language is in 'mw' *and* has a message file
+	 * @return array Language code => language name
+	 */
+	private static function fetchLanguageNamesUncached( $inLanguage = null, $include = 'mw' ) {
 		global $wgExtraLanguageNames;
 		static $coreLanguageNames;
 
@@ -3174,7 +3209,7 @@ class Language {
 
 	/**
 	 * Get special page names, as an associative array
-	 *   case folded alias => real name
+	 *   canonical name => array of valid names, including aliases
 	 * @return array
 	 */
 	function getSpecialPageAliases() {

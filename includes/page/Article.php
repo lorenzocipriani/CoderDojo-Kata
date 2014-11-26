@@ -790,7 +790,11 @@ class Article implements Page {
 
 		if ( !$rev ) {
 			$this->getContext()->getOutput()->setPageTitle( wfMessage( 'errorpagetitle' ) );
-			$this->getContext()->getOutput()->addWikiMsg( 'difference-missing-revision', $oldid, 1 );
+			$msg = $this->getContext()->msg( 'difference-missing-revision' )
+				->params( $oldid )
+				->numParams( 1 )
+				->parseAsBlock();
+			$this->getContext()->getOutput()->addHtml( $msg );
 			return;
 		}
 
@@ -1214,7 +1218,8 @@ class Article implements Page {
 			if ( !( $user && $user->isLoggedIn() ) && !$ip ) { # User does not exist
 				$outputPage->wrapWikiMsg( "<div class=\"mw-userpage-userdoesnotexist error\">\n\$1\n</div>",
 					array( 'userpage-userdoesnotexist-view', wfEscapeWikiText( $rootPart ) ) );
-			} elseif ( !is_null( $block ) && $block->getType() != Block::TYPE_AUTO ) { # Show log extract if the user is currently blocked
+			} elseif ( !is_null( $block ) && $block->getType() != Block::TYPE_AUTO ) {
+				# Show log extract if the user is currently blocked
 				LogEventsList::showLogExtract(
 					$outputPage,
 					'block',
@@ -1243,16 +1248,12 @@ class Article implements Page {
 		wfRunHooks( 'Article::MissingArticleConditions', array( &$conds, $logTypes ) );
 
 		# Show delete and move logs
-		$member = $title->getNamespace() . ':' . $title->getDBkey();
-		// @todo: move optimization to showLogExtract()?
-		if ( BloomCache::get( 'main' )->check( wfWikiId(), 'TitleHasLogs', $member ) ) {
-			LogEventsList::showLogExtract( $outputPage, $logTypes, $title, '',
-				array( 'lim' => 10,
-					'conds' => $conds,
-					'showIfEmpty' => false,
-					'msgKey' => array( 'moveddeleted-notice' ) )
-			);
-		}
+		LogEventsList::showLogExtract( $outputPage, $logTypes, $title, '',
+			array( 'lim' => 10,
+				'conds' => $conds,
+				'showIfEmpty' => false,
+				'msgKey' => array( 'moveddeleted-notice' ) )
+		);
 
 		if ( !$this->mPage->hasViewableContent() && $wgSend404Code && !$validUserPage ) {
 			// If there's no backing content, send a 404 Not Found
@@ -1377,9 +1378,14 @@ class Article implements Page {
 			: 'revision-info';
 
 		$outputPage = $this->getContext()->getOutput();
-		$outputPage->addSubtitle( "<div id=\"mw-{$infomsg}\">" . wfMessage( $infomsg,
-			$td )->rawParams( $userlinks )->params( $revision->getID(), $tddate,
-			$tdtime, $revision->getUserText() )->rawParams( Linker::revComment( $revision, true, true ) )->parse() . "</div>" );
+		$outputPage->addSubtitle( "<div id=\"mw-{$infomsg}\">" .
+			wfMessage( $infomsg, $td )
+				->rawParams( $userlinks )
+				->params( $revision->getID(), $tddate, $tdtime, $revision->getUserText() )
+				->rawParams( Linker::revComment( $revision, true, true ) )
+				->parse() .
+			"</div>"
+		);
 
 		$lnk = $current
 			? wfMessage( 'currentrevisionlink' )->escaped()
@@ -1627,10 +1633,11 @@ class Article implements Page {
 		if ( $hasHistory ) {
 			$title = $this->getTitle();
 
-			// The following can use the real revision count as this is only being shown for users that can delete
-			// this page.
-			// This, as a side-effect, also makes sure that the following query isn't being run for pages with a
-			// larger history, unless the user has the 'bigdelete' right (and is about to delete this page).
+			// The following can use the real revision count as this is only being shown for users
+			// that can delete this page.
+			// This, as a side-effect, also makes sure that the following query isn't being run for
+			// pages with a larger history, unless the user has the 'bigdelete' right
+			// (and is about to delete this page).
 			$dbr = wfGetDB( DB_SLAVE );
 			$revisions = $edits = (int)$dbr->selectField(
 				'revision',
@@ -1640,7 +1647,8 @@ class Article implements Page {
 			);
 
 			// @todo FIXME: i18n issue/patchwork message
-			$this->getContext()->getOutput()->addHTML( '<strong class="mw-delete-warning-revisions">' .
+			$this->getContext()->getOutput()->addHTML(
+				'<strong class="mw-delete-warning-revisions">' .
 				wfMessage( 'historywarning' )->numParams( $revisions )->parse() .
 				wfMessage( 'word-separator' )->plain() . Linker::linkKnown( $title,
 					wfMessage( 'history' )->escaped(),
@@ -1672,7 +1680,9 @@ class Article implements Page {
 		wfDebug( "Article::confirmDelete\n" );
 
 		$title = $this->getTitle();
-		$outputPage = $this->getContext()->getOutput();
+		$ctx = $this->getContext();
+		$outputPage = $ctx->getOutput();
+		$useMediaWikiUIEverywhere = $ctx->getConfig()->get( 'UseMediaWikiUIEverywhere' );
 		$outputPage->setPageTitle( wfMessage( 'delete-confirm', $title->getPrefixedText() ) );
 		$outputPage->addBacklinkSubtitle( $title );
 		$outputPage->setRobotPolicy( 'noindex,nofollow' );
@@ -1688,75 +1698,67 @@ class Article implements Page {
 		$user = $this->getContext()->getUser();
 
 		if ( $user->isAllowed( 'suppressrevision' ) ) {
-			$suppress = "<tr id=\"wpDeleteSuppressRow\">
-					<td></td>
-					<td class='mw-input'><strong>" .
+			$suppress = Html::openElement( 'div', array( 'id' => 'wpDeleteSuppressRow' ) ) .
+				"<strong>" .
 						Xml::checkLabel( wfMessage( 'revdelete-suppress' )->text(),
 							'wpSuppress', 'wpSuppress', false, array( 'tabindex' => '4' ) ) .
-					"</strong></td>
-				</tr>";
+					"</strong>" .
+				Html::closeElement( 'div' );
 		} else {
 			$suppress = '';
 		}
 		$checkWatch = $user->getBoolOption( 'watchdeletion' ) || $user->isWatched( $title );
 
-		$form = Xml::openElement( 'form', array( 'method' => 'post',
+		$form = Html::openElement( 'form', array( 'method' => 'post',
 			'action' => $title->getLocalURL( 'action=delete' ), 'id' => 'deleteconfirm' ) ) .
-			Xml::openElement( 'fieldset', array( 'id' => 'mw-delete-table' ) ) .
-			Xml::tags( 'legend', null, wfMessage( 'delete-legend' )->escaped() ) .
-			Xml::openElement( 'table', array( 'id' => 'mw-deleteconfirm-table' ) ) .
-			"<tr id=\"wpDeleteReasonListRow\">
-				<td class='mw-label'>" .
-					Xml::label( wfMessage( 'deletecomment' )->text(), 'wpDeleteReasonList' ) .
-				"</td>
-				<td class='mw-input'>" .
-					Xml::listDropDown(
-						'wpDeleteReasonList',
-						wfMessage( 'deletereason-dropdown' )->inContentLanguage()->text(),
-						wfMessage( 'deletereasonotherlist' )->inContentLanguage()->text(),
-						'',
-						'wpReasonDropDown',
-						1
-					) .
-				"</td>
-			</tr>
-			<tr id=\"wpDeleteReasonRow\">
-				<td class='mw-label'>" .
-					Xml::label( wfMessage( 'deleteotherreason' )->text(), 'wpReason' ) .
-				"</td>
-				<td class='mw-input'>" .
-				Html::input( 'wpReason', $reason, 'text', array(
-					'size' => '60',
-					'maxlength' => '255',
-					'tabindex' => '2',
-					'id' => 'wpReason',
-					'autofocus'
-				) ) .
-				"</td>
-			</tr>";
+			Html::openElement( 'fieldset', array( 'id' => 'mw-delete-table' ) ) .
+			Html::element( 'legend', null, wfMessage( 'delete-legend' )->text() ) .
+			Html::openElement( 'div', array( 'id' => 'mw-deleteconfirm-table' ) ) .
+			Html::openElement( 'div', array( 'id' => 'wpDeleteReasonListRow' ) ) .
+			Html::label( wfMessage( 'deletecomment' )->text(), 'wpDeleteReasonList' ) .
+			'&nbsp;' .
+			Xml::listDropDown(
+				'wpDeleteReasonList',
+				wfMessage( 'deletereason-dropdown' )->inContentLanguage()->text(),
+				wfMessage( 'deletereasonotherlist' )->inContentLanguage()->text(),
+				'',
+				'wpReasonDropDown',
+				1
+			) .
+			Html::closeElement( 'div' ) .
+			Html::openElement( 'div', array( 'id' => 'wpDeleteReasonRow' ) ) .
+			Html::label( wfMessage( 'deleteotherreason' )->text(), 'wpReason' ) .
+			'&nbsp;' .
+			Html::input( 'wpReason', $reason, 'text', array(
+				'size' => '60',
+				'maxlength' => '255',
+				'tabindex' => '2',
+				'id' => 'wpReason',
+				'class' => 'mw-ui-input-inline',
+				'autofocus'
+			) ) .
+			Html::closeElement( 'div' );
 
 		# Disallow watching if user is not logged in
 		if ( $user->isLoggedIn() ) {
-			$form .= "
-			<tr>
-				<td></td>
-				<td class='mw-input'>" .
+			$form .=
 					Xml::checkLabel( wfMessage( 'watchthis' )->text(),
-						'wpWatch', 'wpWatch', $checkWatch, array( 'tabindex' => '3' ) ) .
-				"</td>
-			</tr>";
+						'wpWatch', 'wpWatch', $checkWatch, array( 'tabindex' => '3' ) );
 		}
 
-		$form .= "
-			$suppress
-			<tr>
-				<td></td>
-				<td class='mw-submit'>" .
+		$form .=
+				Html::openElement( 'div' ) .
+				$suppress .
 					Xml::submitButton( wfMessage( 'deletepage' )->text(),
-						array( 'name' => 'wpConfirmB', 'id' => 'wpConfirmB', 'tabindex' => '5' ) ) .
-				"</td>
-			</tr>" .
-			Xml::closeElement( 'table' ) .
+						array(
+							'name' => 'wpConfirmB',
+							'id' => 'wpConfirmB',
+							'tabindex' => '5',
+							'class' => $useMediaWikiUIEverywhere ? 'mw-ui-button mw-ui-destructive' : '',
+						)
+					) .
+				Html::closeElement( 'div' ) .
+			Html::closeElement( 'div' ) .
 			Xml::closeElement( 'fieldset' ) .
 			Html::hidden(
 				'wpEditToken',
@@ -1801,6 +1803,9 @@ class Article implements Page {
 			$loglink = '[[Special:Log/delete|' . wfMessage( 'deletionlog' )->text() . ']]';
 
 			$outputPage->addWikiMsg( 'deletedtext', wfEscapeWikiText( $deleted ), $loglink );
+
+			wfRunHooks( 'ArticleDeleteAfterSuccess', array( $this->getTitle(), $outputPage ) );
+
 			$outputPage->returnToMain( false );
 		} else {
 			$outputPage->setPageTitle(

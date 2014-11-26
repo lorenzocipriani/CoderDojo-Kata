@@ -205,7 +205,8 @@ class ActiveUsersPager extends UsersPager {
 
 		# Username field
 		$out .= Xml::inputLabel( $this->msg( 'activeusers-from' )->text(),
-			'username', 'offset', 20, $this->requestedUser, array( 'tabindex' => 1 ) ) . '<br />';
+			'username', 'offset', 20, $this->requestedUser,
+			array( 'class' => 'mw-ui-input-inline', 'tabindex' => 1 ) ) . '<br />';
 
 		$out .= Xml::checkLabel( $this->msg( 'activeusers-hidebots' )->text(),
 			'hidebots', 'hidebots', $this->opts->getValue( 'hidebots' ), array( 'tabindex' => 2 ) );
@@ -258,7 +259,7 @@ class SpecialActiveUsers extends SpecialPage {
 			array( 'activeusers-intro', $this->getLanguage()->formatNum( $days ) ) );
 
 		// Occasionally merge in new updates
-		$seconds = min( self::mergeActiveUsers( 600, $days ), $days * 86400 );
+		$seconds = min( self::mergeActiveUsers( 300, $days ), $days * 86400 );
 		// Mention the level of staleness
 		$out->addWikiMsg( 'cachedspecial-viewing-cached-ttl',
 			$this->getLanguage()->formatDuration( $seconds ) );
@@ -331,12 +332,15 @@ class SpecialActiveUsers extends SpecialPage {
 	 * @return int|bool UNIX timestamp the cache is now up-to-date as of (false on error)
 	 */
 	protected static function doQueryCacheUpdate( DatabaseBase $dbw, $days, $window ) {
+		$dbw->startAtomic( __METHOD__ );
+
 		$lockKey = wfWikiID() . '-activeusers';
 		if ( !$dbw->lock( $lockKey, __METHOD__, 1 ) ) {
 			return false; // exclusive update (avoids duplicate entries)
 		}
 
-		$now = time();
+		$nowUnix = time();
+		// Get the last-updated timestamp for the cache
 		$cTime = $dbw->selectField( 'querycache_info',
 			'qci_timestamp',
 			array( 'qci_type' => 'activeusers' )
@@ -346,8 +350,8 @@ class SpecialActiveUsers extends SpecialPage {
 		// Pick the date range to fetch from. This is normally from the last
 		// update to till the present time, but has a limited window for sanity.
 		// If the window is limited, multiple runs are need to fully populate it.
-		$sTimestamp = max( $cTimeUnix, $now - $days * 86400 );
-		$eTimestamp = min( $sTimestamp + $window, $now );
+		$sTimestamp = max( $cTimeUnix, $nowUnix - $days * 86400 );
+		$eTimestamp = min( $sTimestamp + $window, $nowUnix );
 
 		// Get all the users active since the last update
 		$res = $dbw->select(
@@ -375,7 +379,7 @@ class SpecialActiveUsers extends SpecialPage {
 		$dbw->delete( 'querycachetwo',
 			array(
 				'qcc_type' => 'activeusers',
-				'qcc_value < ' . $dbw->addQuotes( $now - $days * 86400 ) // TS_UNIX
+				'qcc_value < ' . $dbw->addQuotes( $nowUnix - $days * 86400 ) // TS_UNIX
 			),
 			__METHOD__
 		);
@@ -388,7 +392,10 @@ class SpecialActiveUsers extends SpecialPage {
 					'qcc_type' => 'activeusers',
 					'qcc_namespace' => NS_USER,
 					'qcc_title' => array_keys( $names ) ),
-				__METHOD__
+				__METHOD__,
+				// See the latest data (ignoring trx snapshot) to avoid
+				// duplicates if this method was called in a transaction
+				array( 'LOCK IN SHARE MODE' )
 			);
 			foreach ( $res as $row ) {
 				unset( $names[$row->user_name] );
@@ -416,15 +423,20 @@ class SpecialActiveUsers extends SpecialPage {
 			}
 		}
 
+		// If a transaction was already started, it might have an old
+		// snapshot, so kludge the timestamp range back as needed.
+		$asOfTimestamp = min( $eTimestamp, (int)$dbw->trxTimestamp() );
+
 		// Touch the data freshness timestamp
 		$dbw->replace( 'querycache_info',
 			array( 'qci_type' ),
 			array( 'qci_type' => 'activeusers',
-				'qci_timestamp' => $dbw->timestamp( $eTimestamp ) ), // not always $now
+				'qci_timestamp' => $dbw->timestamp( $asOfTimestamp ) ), // not always $now
 			__METHOD__
 		);
 
 		$dbw->unlock( $lockKey, __METHOD__ );
+		$dbw->endAtomic( __METHOD__ );
 
 		return $eTimestamp;
 	}

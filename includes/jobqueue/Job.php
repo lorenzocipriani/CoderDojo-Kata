@@ -47,19 +47,11 @@ abstract class Job implements IJobSpecification {
 	/** @var string Text for error that occurred last */
 	protected $error;
 
-	/*-------------------------------------------------------------------------
-	 * Abstract functions
-	 *------------------------------------------------------------------------*/
-
 	/**
 	 * Run the job
 	 * @return bool Success
 	 */
 	abstract public function run();
-
-	/*-------------------------------------------------------------------------
-	 * Static functions
-	 *------------------------------------------------------------------------*/
 
 	/**
 	 * Create the appropriate object to handle a specific job
@@ -81,69 +73,9 @@ abstract class Job implements IJobSpecification {
 	}
 
 	/**
-	 * Batch-insert a group of jobs into the queue.
-	 * This will be wrapped in a transaction with a forced commit.
-	 *
-	 * This may add duplicate at insert time, but they will be
-	 * removed later on, when the first one is popped.
-	 *
-	 * @param array $jobs Array of Job objects
-	 * @return bool
-	 * @deprecated since 1.21
-	 */
-	public static function batchInsert( $jobs ) {
-		JobQueueGroup::singleton()->push( $jobs );
-		return true;
-	}
-
-	/**
-	 * Insert a group of jobs into the queue.
-	 *
-	 * Same as batchInsert() but does not commit and can thus
-	 * be rolled-back as part of a larger transaction. However,
-	 * large batches of jobs can cause slave lag.
-	 *
-	 * @param array $jobs Array of Job objects
-	 * @return bool
-	 * @deprecated since 1.21
-	 */
-	public static function safeBatchInsert( $jobs ) {
-		JobQueueGroup::singleton()->push( $jobs, JobQueue::QOS_ATOMIC );
-		return true;
-	}
-
-	/**
-	 * Pop a job of a certain type.  This tries less hard than pop() to
-	 * actually find a job; it may be adversely affected by concurrent job
-	 * runners.
-	 *
-	 * @param string $type
-	 * @return Job|bool Returns false if there are no jobs
-	 * @deprecated since 1.21
-	 */
-	public static function pop_type( $type ) {
-		return JobQueueGroup::singleton()->get( $type )->pop();
-	}
-
-	/**
-	 * Pop a job off the front of the queue.
-	 * This is subject to $wgJobTypesExcludedFromDefaultQueue.
-	 *
-	 * @return Job|bool False if there are no jobs
-	 * @deprecated since 1.21
-	 */
-	public static function pop() {
-		return JobQueueGroup::singleton()->pop();
-	}
-
-	/*-------------------------------------------------------------------------
-	 * Non-static functions
-	 *------------------------------------------------------------------------*/
-
-	/**
 	 * @param string $command
 	 * @param Title $title
-	 * @param array|bool $params
+	 * @param array|bool $params Can not be === true
 	 */
 	public function __construct( $command, $title, $params = false ) {
 		$this->command = $command;
@@ -152,6 +84,23 @@ abstract class Job implements IJobSpecification {
 
 		// expensive jobs may set this to true
 		$this->removeDuplicates = false;
+	}
+
+	/**
+	 * Batch-insert a group of jobs into the queue.
+	 * This will be wrapped in a transaction with a forced commit.
+	 *
+	 * This may add duplicate at insert time, but they will be
+	 * removed later on, when the first one is popped.
+	 *
+	 * @param Job[] $jobs Array of Job objects
+	 * @return bool
+	 * @deprecated since 1.21
+	 */
+	public static function batchInsert( $jobs ) {
+		wfDeprecated( __METHOD__, '1.21' );
+		JobQueueGroup::singleton()->push( $jobs );
+		return true;
 	}
 
 	/**
@@ -315,7 +264,7 @@ abstract class Job implements IJobSpecification {
 							break;
 						}
 					}
-					if ( $filteredValue ) {
+					if ( $filteredValue && count( $filteredValue ) < 10 ) {
 						$value = FormatJson::encode( $filteredValue );
 					} else {
 						$value = "array(" . count( $value ) . ")";
@@ -328,16 +277,25 @@ abstract class Job implements IJobSpecification {
 			}
 		}
 
-		if ( is_object( $this->title ) ) {
-			$s = "{$this->command} " . $this->title->getPrefixedDBkey();
-			if ( $paramString !== '' ) {
-				$s .= ' ' . $paramString;
+		$metaString = '';
+		foreach ( $this->metadata as $key => $value ) {
+			if ( is_scalar( $value ) && mb_strlen( $value ) < 1024 ) {
+				$metaString .= ( $metaString ? ",$key=$value" : "$key=$value" );
 			}
-
-			return $s;
-		} else {
-			return "{$this->command} $paramString";
 		}
+
+		$s = $this->command;
+		if ( is_object( $this->title ) ) {
+			$s .= " {$this->title->getPrefixedDBkey()}";
+		}
+		if ( $paramString != '' ) {
+			$s .= " $paramString";
+		}
+		if ( $metaString != '' ) {
+			$s .= " ($metaString)";
+		}
+
+		return $s;
 	}
 
 	protected function setLastError( $error ) {

@@ -239,25 +239,33 @@ abstract class Skin extends ContextSource {
 	 * Preload the existence of three commonly-requested pages in a single query
 	 */
 	function preloadExistence() {
+		$titles = array();
+
 		$user = $this->getUser();
+		$title = $this->getRelevantTitle();
 
 		// User/talk link
-		$titles = array( $user->getUserPage(), $user->getTalkPage() );
+		if ( $user->isLoggedIn() || $this->showIPinHeader() ) {
+			$titles[] = $user->getUserPage();
+			$titles[] = $user->getTalkPage();
+		}
 
 		// Other tab link
-		if ( $this->getTitle()->isSpecialPage() ) {
+		if ( $title->isSpecialPage() ) {
 			// nothing
-		} elseif ( $this->getTitle()->isTalkPage() ) {
-			$titles[] = $this->getTitle()->getSubjectPage();
+		} elseif ( $title->isTalkPage() ) {
+			$titles[] = $title->getSubjectPage();
 		} else {
-			$titles[] = $this->getTitle()->getTalkPage();
+			$titles[] = $title->getTalkPage();
 		}
 
 		wfRunHooks( 'SkinPreloadExistence', array( &$titles, $this ) );
 
-		$lb = new LinkBatch( $titles );
-		$lb->setCaller( __METHOD__ );
-		$lb->execute();
+		if ( count( $titles ) ) {
+			$lb = new LinkBatch( $titles );
+			$lb->setCaller( __METHOD__ );
+			$lb->execute();
+		}
 	}
 
 	/**
@@ -647,12 +655,12 @@ abstract class Skin extends ContextSource {
 	function getUndeleteLink() {
 		$action = $this->getRequest()->getVal( 'action', 'view' );
 
-		if ( $this->getUser()->isAllowed( 'deletedhistory' ) &&
+		if ( $this->getTitle()->userCan( 'deletedhistory', $this->getUser() ) &&
 			( $this->getTitle()->getArticleID() == 0 || $action == 'history' ) ) {
 			$n = $this->getTitle()->isDeleted();
 
 			if ( $n ) {
-				if ( $this->getUser()->isAllowed( 'undelete' ) ) {
+				if ( $this->getTitle()->userCan( 'undelete', $this->getUser() ) ) {
 					$msg = 'thisisdeleted';
 				} else {
 					$msg = 'viewdeleted';
@@ -932,6 +940,7 @@ abstract class Skin extends ContextSource {
 	 * @return string HTML anchor
 	 */
 	public function footerLink( $desc, $page ) {
+		$section = new ProfileSection( __METHOD__ );
 		// if the link description has been set to "-" in the default language,
 		if ( $this->msg( $desc )->inContentLanguage()->isDisabled() ) {
 			// then it is disabled, for all languages.

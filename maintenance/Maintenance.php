@@ -20,8 +20,8 @@
  * @defgroup Maintenance Maintenance
  */
 
-// Make sure we're on PHP5.3.2 or better
-if ( !function_exists( 'version_compare' ) || version_compare( PHP_VERSION, '5.3.2' ) < 0 ) {
+// Make sure we're on PHP5.3.3 or better
+if ( !function_exists( 'version_compare' ) || version_compare( PHP_VERSION, '5.3.3' ) < 0 ) {
 	// We need to use dirname( __FILE__ ) here cause __DIR__ is PHP5.3+
 	require_once dirname( __FILE__ ) . '/../includes/PHPVersionError.php';
 	wfPHPVersionError( 'cli' );
@@ -446,7 +446,6 @@ abstract class Maintenance {
 		$this->addOption( 'server', "The protocol and server name to use in URLs, e.g. " .
 			"http://en.wikipedia.org. This is sometimes necessary because " .
 			"server name detection may fail in command line scripts.", false, true );
-		$this->addOption( 'profiler', 'Set to "text" or "trace" to show profiling output', false, true );
 
 		# Save generic options to display them separately in help
 		$this->mGenericParameters = $this->mParams;
@@ -930,16 +929,6 @@ abstract class Maintenance {
 		// @codingStandardsIgnoreStart
 
 		$this->adjustMemoryLimit();
-
-		// Per-script profiling; useful for debugging
-		$forcedProfiler = $this->getOption( 'profiler' );
-		if ( $forcedProfiler === 'text' ) {
-			Profiler::setInstance( new ProfilerSimpleText( array() ) );
-			Profiler::instance()->setTemplated( true );
-		} elseif ( $forcedProfiler === 'trace' ) {
-			Profiler::setInstance( new ProfilerSimpleTrace( array() ) );
-			Profiler::instance()->setTemplated( true );
-		}
 	}
 
 	/**

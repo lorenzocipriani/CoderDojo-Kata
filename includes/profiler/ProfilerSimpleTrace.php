@@ -30,19 +30,15 @@ class ProfilerSimpleTrace extends ProfilerStandard {
 	protected $trace = "Beginning trace: \n";
 	protected $memory = 0;
 
-	protected function collateOnly() {
-		return true;
-	}
-
 	public function profileIn( $functionname ) {
 		parent::profileIn( $functionname );
 
 		$this->trace .= "         " . sprintf( "%6.1f", $this->memoryDiff() ) .
-			str_repeat( " ", count( $this->mWorkStack ) ) . " > " . $functionname . "\n";
+			str_repeat( " ", count( $this->workStack ) ) . " > " . $functionname . "\n";
 	}
 
 	public function profileOut( $functionname ) {
-		$item = end( $this->mWorkStack );
+		$item = end( $this->workStack );
 
 		parent::profileOut( $functionname );
 
@@ -59,7 +55,7 @@ class ProfilerSimpleTrace extends ProfilerStandard {
 			}
 			$elapsedreal = $this->getTime() - $ortime;
 			$this->trace .= sprintf( "%03.6f %6.1f", $elapsedreal, $this->memoryDiff() ) .
-				str_repeat( " ", count( $this->mWorkStack ) + 1 ) . " < " . $functionname . "\n";
+				str_repeat( " ", count( $this->workStack ) + 1 ) . " < " . $functionname . "\n";
 		}
 	}
 
@@ -70,14 +66,15 @@ class ProfilerSimpleTrace extends ProfilerStandard {
 	}
 
 	public function logData() {
-		if ( $this->mTemplated ) {
+		if ( $this->templated ) {
+			$contentType = $this->getContentType();
 			if ( PHP_SAPI === 'cli' ) {
 				print "<!-- \n {$this->trace} \n -->";
-			} elseif ( $this->getContentType() === 'text/html' ) {
+			} elseif ( $contentType === 'text/html' ) {
 				print "<!-- \n {$this->trace} \n -->";
-			} elseif ( $this->getContentType() === 'text/javascript' ) {
+			} elseif ( $contentType === 'text/javascript' ) {
 				print "\n/*\n {$this->trace}\n*/";
-			} elseif ( $this->getContentType() === 'text/css' ) {
+			} elseif ( $contentType === 'text/css' ) {
 				print "\n/*\n {$this->trace}\n*/";
 			}
 		}

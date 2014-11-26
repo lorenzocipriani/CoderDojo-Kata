@@ -76,6 +76,13 @@ class JobRunner {
 			$this->runJobsLog( "Executed $count periodic queue task(s)." );
 		}
 
+		// Bail out if there is too much DB lag
+		list( , $maxLag ) = wfGetLBFactory()->getMainLB( wfWikiID() )->getMaxLag();
+		if ( $maxLag >= 5 ) {
+			$response['reached'] = 'slave-lag-limit';
+			return $response;
+		}
+
 		// Flush any pending DB writes for sanity
 		wfGetLBFactory()->commitMasterChanges();
 
@@ -87,8 +94,10 @@ class JobRunner {
 		$jobsRun = 0;
 		$timeMsTotal = 0;
 		$flags = JobQueueGroup::USE_CACHE;
+		$checkPeriod = 5.0; // seconds
+		$checkPhase = mt_rand( 0, 1000 * $checkPeriod ) / 1000; // avoid stampedes
 		$startTime = microtime( true ); // time since jobs started running
-		$lastTime = microtime( true ); // time since last slave check
+		$lastTime = microtime( true ) - $checkPhase; // time since last slave check
 		do {
 			// Sync the persistent backoffs with concurrent runners
 			$backoffs = $this->syncBackoffDeltas( $backoffs, $backoffDeltas, $wait );
@@ -172,10 +181,15 @@ class JobRunner {
 					break;
 				}
 
-				// Don't let any of the main DB slaves get backed up
+				// Don't let any of the main DB slaves get backed up.
+				// This only waits for so long before exiting and letting
+				// other wikis in the farm (on different masters) get a chance.
 				$timePassed = microtime( true ) - $lastTime;
 				if ( $timePassed >= 5 || $timePassed < 0 ) {
-					wfWaitForSlaves( $lastTime );
+					if ( !wfWaitForSlaves( $lastTime, false, '*', 5 ) ) {
+						$response['reached'] = 'slave-lag-limit';
+						break;
+					}
 					$lastTime = microtime( true );
 				}
 				// Don't let any queue slaves/backups fall behind

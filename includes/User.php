@@ -357,21 +357,14 @@ class User implements IDBAccessObject {
 	 * @return bool False if the ID does not exist, true otherwise
 	 */
 	public function loadFromId() {
-		global $wgMemc;
 		if ( $this->mId == 0 ) {
 			$this->loadDefaults();
 			return false;
 		}
 
 		// Try cache
-		$key = wfMemcKey( 'user', 'id', $this->mId );
-		$data = $wgMemc->get( $key );
-		if ( !is_array( $data ) || $data['mVersion'] != self::VERSION ) {
-			// Object is expired, load from DB
-			$data = false;
-		}
-
-		if ( !$data ) {
+		$cache = $this->loadFromCache();
+		if ( !$cache ) {
 			wfDebug( "User: cache miss for user {$this->mId}\n" );
 			// Load from DB
 			if ( !$this->loadFromDatabase() ) {
@@ -379,15 +372,40 @@ class User implements IDBAccessObject {
 				return false;
 			}
 			$this->saveToCache();
-		} else {
-			wfDebug( "User: got user {$this->mId} from cache\n" );
-			// Restore from cache
-			foreach ( self::$mCacheVars as $name ) {
-				$this->$name = $data[$name];
-			}
 		}
 
 		$this->mLoadedItems = true;
+
+		return true;
+	}
+
+	/**
+	 * Load user data from shared cache, given mId has already been set.
+	 *
+	 * @return bool false if the ID does not exist or data is invalid, true otherwise
+	 * @since 1.25
+	 */
+	public function loadFromCache() {
+		global $wgMemc;
+
+		if ( $this->mId == 0 ) {
+			$this->loadDefaults();
+			return false;
+		}
+
+		$key = wfMemcKey( 'user', 'id', $this->mId );
+		$data = $wgMemc->get( $key );
+		if ( !is_array( $data ) || $data['mVersion'] < self::VERSION ) {
+			// Object is expired
+			return false;
+		}
+
+		wfDebug( "User: got user {$this->mId} from cache\n" );
+
+		// Restore from cache
+		foreach ( self::$mCacheVars as $name ) {
+			$this->$name = $data[$name];
+		}
 
 		return true;
 	}
@@ -623,10 +641,11 @@ class User implements IDBAccessObject {
 		global $wgContLang, $wgMaxNameChars;
 
 		if ( $name == ''
-		|| User::isIP( $name )
-		|| strpos( $name, '/' ) !== false
-		|| strlen( $name ) > $wgMaxNameChars
-		|| $name != $wgContLang->ucfirst( $name ) ) {
+			|| User::isIP( $name )
+			|| strpos( $name, '/' ) !== false
+			|| strlen( $name ) > $wgMaxNameChars
+			|| $name != $wgContLang->ucfirst( $name )
+		) {
 			wfDebugLog( 'username', __METHOD__ .
 				": '$name' invalid due to empty, IP, slash, length, or lowercase" );
 			return false;
@@ -1734,7 +1753,9 @@ class User implements IDBAccessObject {
 		// If more than one group applies, use the group with the highest limit
 		foreach ( $this->getGroups() as $group ) {
 			if ( isset( $limits[$group] ) ) {
-				if ( $userLimit === false || $limits[$group] > $userLimit ) {
+				if ( $userLimit === false
+					|| $limits[$group][0] / $limits[$group][1] > $userLimit[0] / $userLimit[1]
+				) {
 					$userLimit = $limits[$group];
 				}
 			}
@@ -2333,11 +2354,7 @@ class User implements IDBAccessObject {
 		$this->setToken();
 
 		$passwordFactory = self::getPasswordFactory();
-		if ( $str === null ) {
-			$this->mPassword = $passwordFactory->newFromCiphertext( null );
-		} else {
-			$this->mPassword = $passwordFactory->newFromPlaintext( $str );
-		}
+		$this->mPassword = $passwordFactory->newFromPlaintext( $str );
 
 		$this->mNewpassword = $passwordFactory->newFromCiphertext( null );
 		$this->mNewpassTime = null;
@@ -2382,14 +2399,11 @@ class User implements IDBAccessObject {
 	public function setNewpassword( $str, $throttle = true ) {
 		$this->loadPasswords();
 
+		$this->mNewpassword = self::getPasswordFactory()->newFromPlaintext( $str );
 		if ( $str === null ) {
-			$this->mNewpassword = '';
 			$this->mNewpassTime = null;
-		} else {
-			$this->mNewpassword = self::getPasswordFactory()->newFromPlaintext( $str );
-			if ( $throttle ) {
-				$this->mNewpassTime = wfTimestampNow();
-			}
+		} elseif ( $throttle ) {
+			$this->mNewpassTime = wfTimestampNow();
 		}
 	}
 
@@ -3804,7 +3818,6 @@ class User implements IDBAccessObject {
 			return false;
 		}
 
-		$passwordFactory = self::getPasswordFactory();
 		if ( !$this->mPassword->equals( $password ) ) {
 			if ( $wgLegacyEncoding ) {
 				// Some wikis were converted from ISO 8859-1 to UTF-8, the passwords can't be converted
@@ -3818,6 +3831,7 @@ class User implements IDBAccessObject {
 			}
 		}
 
+		$passwordFactory = self::getPasswordFactory();
 		if ( $passwordFactory->needsUpdate( $this->mPassword ) ) {
 			$this->mPassword = $passwordFactory->newFromPlaintext( $password );
 			$this->saveSettings();
@@ -3864,6 +3878,33 @@ class User implements IDBAccessObject {
 	}
 
 	/**
+	 * Internal implementation for self::getEditToken() and
+	 * self::matchEditToken().
+	 *
+	 * @param string|array $salt
+	 * @param WebRequest $request
+	 * @param string|int $timestamp
+	 * @return string
+	 */
+	private function getEditTokenAtTimestamp( $salt, $request, $timestamp ) {
+		if ( $this->isAnon() ) {
+			return self::EDIT_TOKEN_SUFFIX;
+		} else {
+			$token = $request->getSessionData( 'wsEditToken' );
+			if ( $token === null ) {
+				$token = MWCryptRand::generateHex( 32 );
+				$request->setSessionData( 'wsEditToken', $token );
+			}
+			if ( is_array( $salt ) ) {
+				$salt = implode( '|', $salt );
+			}
+			return hash_hmac( 'md5', $timestamp . $salt, $token, false ) .
+				dechex( $timestamp ) .
+				self::EDIT_TOKEN_SUFFIX;
+		}
+	}
+
+	/**
 	 * Initialize (if necessary) and return a session token value
 	 * which can be used in edit forms to show that the user's
 	 * login credentials aren't being hijacked with a foreign form
@@ -3876,23 +3917,9 @@ class User implements IDBAccessObject {
 	 * @return string The new edit token
 	 */
 	public function getEditToken( $salt = '', $request = null ) {
-		if ( $request == null ) {
-			$request = $this->getRequest();
-		}
-
-		if ( $this->isAnon() ) {
-			return self::EDIT_TOKEN_SUFFIX;
-		} else {
-			$token = $request->getSessionData( 'wsEditToken' );
-			if ( $token === null ) {
-				$token = MWCryptRand::generateHex( 32 );
-				$request->setSessionData( 'wsEditToken', $token );
-			}
-			if ( is_array( $salt ) ) {
-				$salt = implode( '|', $salt );
-			}
-			return md5( $token . $salt ) . self::EDIT_TOKEN_SUFFIX;
-		}
+		return $this->getEditTokenAtTimestamp(
+			$salt, $request ?: $this->getRequest(), wfTimestamp()
+		);
 	}
 
 	/**
@@ -3915,15 +3942,34 @@ class User implements IDBAccessObject {
 	 * @param string $val Input value to compare
 	 * @param string $salt Optional function-specific data for hashing
 	 * @param WebRequest|null $request Object to use or null to use $wgRequest
+	 * @param int $maxage Fail tokens older than this, in seconds
 	 * @return bool Whether the token matches
 	 */
-	public function matchEditToken( $val, $salt = '', $request = null ) {
-		$sessionToken = $this->getEditToken( $salt, $request );
+	public function matchEditToken( $val, $salt = '', $request = null, $maxage = null ) {
+		if ( $this->isAnon() ) {
+			return $val === self::EDIT_TOKEN_SUFFIX;
+		}
+
+		$suffixLen = strlen( self::EDIT_TOKEN_SUFFIX );
+		if ( strlen( $val ) <= 32 + $suffixLen ) {
+			return false;
+		}
+
+		$timestamp = hexdec( substr( $val, 32, -$suffixLen ) );
+		if ( $maxage !== null && $timestamp < wfTimestamp() - $maxage ) {
+			// Expired token
+			return false;
+		}
+
+		$sessionToken = $this->getEditTokenAtTimestamp(
+			$salt, $request ?: $this->getRequest(), $timestamp
+		);
+
 		if ( $val != $sessionToken ) {
 			wfDebug( "User::matchEditToken: broken session data\n" );
 		}
 
-		return $val == $sessionToken;
+		return hash_equals( $sessionToken, $val );
 	}
 
 	/**
@@ -3933,11 +3979,12 @@ class User implements IDBAccessObject {
 	 * @param string $val Input value to compare
 	 * @param string $salt Optional function-specific data for hashing
 	 * @param WebRequest|null $request Object to use or null to use $wgRequest
+	 * @param int $maxage Fail tokens older than this, in seconds
 	 * @return bool Whether the token matches
 	 */
-	public function matchEditTokenNoSuffix( $val, $salt = '', $request = null ) {
-		$sessionToken = $this->getEditToken( $salt, $request );
-		return substr( $sessionToken, 0, 32 ) == substr( $val, 0, 32 );
+	public function matchEditTokenNoSuffix( $val, $salt = '', $request = null, $maxage = null ) {
+		$val = substr( $val, 0, strspn( $val, '0123456789abcdef' ) ) . self::EDIT_TOKEN_SUFFIX;
+		return $this->matchEditToken( $val, $salt, $request, $maxage );
 	}
 
 	/**
@@ -4465,6 +4512,7 @@ class User implements IDBAccessObject {
 
 		// Same thing for remove
 		if ( empty( $wgRemoveGroups[$group] ) ) {
+			// Do nothing
 		} elseif ( $wgRemoveGroups[$group] === true ) {
 			$groups['remove'] = self::getAllGroups();
 		} elseif ( is_array( $wgRemoveGroups[$group] ) ) {
@@ -4490,6 +4538,7 @@ class User implements IDBAccessObject {
 
 		// Now figure out what groups the user can add to him/herself
 		if ( empty( $wgGroupsAddToSelf[$group] ) ) {
+			// Do nothing
 		} elseif ( $wgGroupsAddToSelf[$group] === true ) {
 			// No idea WHY this would be used, but it's there
 			$groups['add-self'] = User::getAllGroups();
@@ -4498,6 +4547,7 @@ class User implements IDBAccessObject {
 		}
 
 		if ( empty( $wgGroupsRemoveFromSelf[$group] ) ) {
+			// Do nothing
 		} elseif ( $wgGroupsRemoveFromSelf[$group] === true ) {
 			$groups['remove-self'] = User::getAllGroups();
 		} elseif ( is_array( $wgGroupsRemoveFromSelf[$group] ) ) {

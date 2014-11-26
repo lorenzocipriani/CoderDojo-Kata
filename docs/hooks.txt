@@ -260,13 +260,6 @@ $password: the password being submitted, not yet checked for validity
           a machine API rather than the HTML user interface.
 &$msg: the message identifier for abort reason (new in 1.18, not available before 1.18)
 
-'AbortMove': Allows to abort moving an article (title).
-$old: old title
-$nt: new title
-$user: user who is doing the move
-$err: error message
-$reason: the reason for the move (added in 1.13)
-
 'AbortNewAccount': Return false to cancel explicit account creation.
 $user: the User object about to be created (read-only, incomplete)
 &$msg: out parameter: HTML to display on abort
@@ -379,19 +372,40 @@ $editPage : the EditPage object
 $text : the new text of the article (has yet to be saved)
 &$resultArr : data in this array will be added to the API result
 
+'ApiFormatHighlight': Use to syntax-highlight API pretty-printed output. When
+highlighting, add output to $context->getOutput() and return false.
+$context: An IContextSource.
+$text: Text to be highlighted.
+$mime: MIME type of $text.
+$format: API format code for $text.
+
 'APIGetAllowedParams': Use this hook to modify a module's parameters.
 &$module: ApiBase Module object
 &$params: Array of parameters
 $flags: int zero or OR-ed flags like ApiBase::GET_VALUES_FOR_HELP
 
-'APIGetDescription': Use this hook to modify a module's description.
+'APIGetDescription': DEPRECATED! Use APIGetDescriptionMessages instead.
+Use this hook to modify a module's description.
 &$module: ApiBase Module object
-&$desc: Array of descriptions
+&$desc: String description, or array of description strings
 
-'APIGetParamDescription': Use this hook to modify a module's parameter
-descriptions.
+'APIGetDescriptionMessages': Use this hook to modify a module's help message.
+$module: ApiBase Module object
+&$msg: Array of Message objects
+
+'APIGetParamDescription': DEPRECATED! Use APIGetParamDescriptionMessages instead.
+Use this hook to modify a module's parameter descriptions.
 &$module: ApiBase Module object
 &$desc: Array of parameter descriptions
+
+'APIGetParamDescriptionMessages': Use this hook to modify a module's parameter descriptions.
+$module: ApiBase Module object
+&$msg: Array of arrays of Message objects
+
+'APIHelpModifyOutput': Use this hook to modify an API module's help output.
+$module: ApiBase Module object
+&$help: Array of HTML strings to be joined for the output.
+$options: Array Options passed to ApiHelp::getHelp
 
 'APIQueryAfterExecute': After calling the execute() method of an
 action=query submodule. Use this to extend core API modules.
@@ -513,6 +527,10 @@ $error: if the deletion was prohibited, the (raw HTML) error message to display
   (added in 1.13)
 $status: Status object, modify this to throw an error. Overridden by $error
   (added in 1.20)
+
+'ArticleDeleteAfterSuccess': Output after an article has been deleted.
+$title: Title of the article that has been deleted.
+$outputPage: OutputPage that can be used to append the output.
 
 'ArticleDeleteComplete': After an article is deleted.
 $wikiPage: the WikiPage that was deleted
@@ -911,6 +929,15 @@ $generateHtml: boolean, indicating whether full HTML should be generated. If fal
 generation of HTML may be skipped, but other information should still be present in the
 ParserOutput object.
 &$output: ParserOutput, to manipulate or replace
+
+'ContentAlterParserOutput': Modify parser output for a given content object.
+Called by Content::getParserOutput after parsing has finished. Can be used
+for changes that depend on the result of the parsing but have to be done
+before LinksUpdate is called (such as adding tracking categories based on
+the rendered HTML).
+$content: The Content to render
+$title: Title of the page, as context
+$parserOutput: ParserOutput to manipulate
 
 'ConvertContent': Called by AbstractContent::convert when a conversion to another
 content model is requested.
@@ -1668,6 +1695,13 @@ optional localisation messages
 &$ignored Array of ignored message keys
 &$optional Array of optional message keys
 
+'LogEventsListGetExtraInputs': When getting extra inputs to display on Special:Log
+for a specific log type
+$type: String of log type being displayed
+$logEventsList: LogEventsList object for context and access to the WebRequest
+&$input: string HTML of an input element
+
+
 'LogEventsListShowLogExtract': Called before the string is added to OutputPage.
 Returning false will prevent the string from being added to the OutputPage.
 &$s: html string to show for the log extract
@@ -1804,6 +1838,18 @@ $db: The database object to be queried.
 &$conds: Conditions in the query.
 &$opts: Options for the query.
 &$join_conds: Join conditions for the query.
+
+'MovePageCheckPermissions': Specify whether the user is allowed to move the page.
+$oldTitle: Title object of the current (old) location
+$newTitle: Title object of the new location
+$user: User making the move
+$reason: string of the reason provided by the user
+$status: Status object to pass error messages to
+
+'MovePageIsValidMove': Specify whether a page can be moved for technical reasons.
+$oldTitle: Title object of the current (old) location
+$newTitle: Title object of the new location
+$status: Status object to pass error messages to
 
 'BaseTemplateToolbox': Called by BaseTemplate when building the $toolbox array
 and returning it for the skin to output. You can add items to the toolbox while
@@ -2108,6 +2154,13 @@ $ns : array of int namespace keys to search in
 $search : search term (not guaranteed to be conveniently normalized)
 $limit : maximum number of results to return
 &$results : out param: array of page names (strings)
+
+'PrefixSearchExtractNamespace': Called if core was not able to extract a
+namespace from the search string so that extensions can attempt it.
+$namespaces : array of int namespace keys to search in (change this if you can
+extract namespaces)
+$search : search term (replace this with term without the namespace if you can
+extract one)
 
 'PrefsEmailAudit': Called when user changes their email address.
 $user: User (object) changing his email address
@@ -2427,6 +2480,11 @@ $out: The header HTML
 UsersPager::getQueryInfo()
 $pager: The UsersPager instance
 $query: The query array to be returned
+
+'SpecialLogAddLogSearchRelations': Add log relations to the current log
+$type: String of the log type
+$request: WebRequest object for getting the value provided by the current user
+&$qc: Array for query conditions to add
 
 'SpecialMovepageAfterMove': Called after moving a page.
 $movePage: MovePageForm object
@@ -2830,7 +2888,7 @@ $user: User object
 'UserGetLanguageObject': Called when getting user's interface language object.
 $user: User object
 &$code: Language code that will be used to create the object
-$context: RequestContext object
+$context: IContextSource object
 
 'UserGetReservedNames': Allows to modify $wgReservedUsernames at run time.
 &$reservedUsernames: $wgReservedUsernames
@@ -2962,6 +3020,11 @@ $file: The file the metadata is for
 when UserMailer sends an email, with a bounce handling extension.
 $to: Array of MailAddress objects for the recipients
 &$returnPath: The return address string
+
+'LoginFormValidErrorMessages': Called in LoginForm when a function gets valid error
+messages. Allows to add additional error messages (except messages already in
+LoginForm::$validErrorMessages).
+&$messages Already added messages (inclusive messages from LoginForm::$validErrorMessages)
 
 'WantedPages::getQueryInfo': Called in WantedPagesPage::getQueryInfo(), can be
 used to alter the SQL query which gets the list of wanted pages.

@@ -732,7 +732,7 @@ class SpecialUpload extends SpecialPage {
 
 		return '<li>' .
 			wfMessage( 'file-exists-duplicate' )->numParams( count( $dupes ) )->parse() .
-			$gallery->toHtml() . "</li>\n";
+			$gallery->toHTML() . "</li>\n";
 	}
 
 	protected function getGroupName() {
@@ -746,7 +746,7 @@ class SpecialUpload extends SpecialPage {
 	 *
 	 * @todo What about non-BitmapHandler handled files?
 	 */
-	static public function rotationEnabled() {
+	public static function rotationEnabled() {
 		$bitmapHandler = new BitmapHandler();
 		return $bitmapHandler->autoRotateEnabled();
 	}
@@ -903,7 +903,7 @@ class UploadForm extends HTMLForm {
 					$this->getContext()->getLanguage()->formatSize( $this->mMaxUploadSize['url'] )
 				)->parse() .
 					$this->msg( 'word-separator' )->escaped() .
-					$this->msg( 'upload_source_url' )->escaped(),
+					$this->msg( 'upload_source_url' )->parse(),
 				'checked' => $selectedSourceType == 'url',
 			);
 		}
@@ -1142,6 +1142,7 @@ class UploadForm extends HTMLForm {
 			'wgStrictFileExtensions' => $config->get( 'StrictFileExtensions' ),
 			'wgCapitalizeUploads' => MWNamespace::isCapitalized( NS_FILE ),
 			'wgMaxUploadSize' => $this->mMaxUploadSize,
+			'wgFileCanRotate' => SpecialUpload::rotationEnabled(),
 		);
 
 		$out = $this->getOutput();

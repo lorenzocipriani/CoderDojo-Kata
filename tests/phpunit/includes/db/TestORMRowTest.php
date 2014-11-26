@@ -35,13 +35,9 @@
  * that hold the first tests in a pending state awaiting access to the database.
  * @group medium
  *
+ * @covers TestORMRow
  * @licence GNU GPL v2+
  * @author Jeroen De Dauw < jeroendedauw@gmail.com >
- */
-require_once __DIR__ . "/ORMRowTest.php";
-
-/**
- * @covers TestORMRow
  */
 class TestORMRowTest extends ORMRowTest {
 
@@ -150,6 +146,10 @@ class TestORMRow extends ORMRow {
 
 class TestORMTable extends ORMTable {
 
+	public function __construct() {
+		$this->fieldPrefix = 'test_';
+	}
+
 	/**
 	 * Returns the name of the database table objects of this type are stored in.
 	 *
@@ -203,16 +203,5 @@ class TestORMTable extends ORMTable {
 			'moarstuff' => 'blob',
 			'time' => 'str', // TS_MW
 		);
-	}
-
-	/**
-	 * Gets the db field prefix.
-	 *
-	 * @since 1.20
-	 *
-	 * @return string
-	 */
-	protected function getFieldPrefix() {
-		return 'test_';
 	}
 }

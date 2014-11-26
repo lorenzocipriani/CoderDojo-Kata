@@ -70,7 +70,7 @@ abstract class ResourceLoaderWikiModule extends ResourceLoaderModule {
 	 * In particular, it doesn't work for getting the content of JS and CSS pages. That functionality
 	 * will use the local DB irrespective of the return value of this method.
 	 *
-	 * @return DatabaseBase|null
+	 * @return IDatabase|null
 	 */
 	protected function getDB() {
 		return wfGetDB( DB_SLAVE );
@@ -81,9 +81,15 @@ abstract class ResourceLoaderWikiModule extends ResourceLoaderModule {
 	 * @return null|string
 	 */
 	protected function getContent( $title ) {
-		if ( !$title->isCssJsSubpage() && !$title->isCssOrJsPage() ) {
+		$handler = ContentHandler::getForTitle( $title );
+		if ( $handler->isSupportedFormat( CONTENT_FORMAT_CSS ) ) {
+			$format = CONTENT_FORMAT_CSS;
+		} elseif ( $handler->isSupportedFormat( CONTENT_FORMAT_JAVASCRIPT ) ) {
+			$format = CONTENT_FORMAT_JAVASCRIPT;
+		} else {
 			return null;
 		}
+
 		$revision = Revision::newFromTitle( $title, false, Revision::READ_NORMAL );
 		if ( !$revision ) {
 			return null;
@@ -96,14 +102,7 @@ abstract class ResourceLoaderWikiModule extends ResourceLoaderModule {
 			return null;
 		}
 
-		if ( $content->isSupportedFormat( CONTENT_FORMAT_JAVASCRIPT ) ) {
-			return $content->serialize( CONTENT_FORMAT_JAVASCRIPT );
-		} elseif ( $content->isSupportedFormat( CONTENT_FORMAT_CSS ) ) {
-			return $content->serialize( CONTENT_FORMAT_CSS );
-		} else {
-			wfDebugLog( 'resourceloader', __METHOD__ . ": bad content model {$content->getModel()} for JS/CSS page!" );
-			return null;
-		}
+		return $content->serialize( $format );
 	}
 
 	/* Methods */
@@ -171,7 +170,7 @@ abstract class ResourceLoaderWikiModule extends ResourceLoaderModule {
 		$modifiedTime = 1; // wfTimestamp() interprets 0 as "now"
 		$titleInfo = $this->getTitleInfo( $context );
 		if ( count( $titleInfo ) ) {
-			$mtimes = array_map( function( $value ) {
+			$mtimes = array_map( function ( $value ) {
 				return $value['timestamp'];
 			}, $titleInfo );
 			$modifiedTime = max( $modifiedTime, max( $mtimes ) );

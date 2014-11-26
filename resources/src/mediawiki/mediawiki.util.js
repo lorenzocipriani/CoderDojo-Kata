@@ -151,12 +151,12 @@
 		 * Returns null if not found.
 		 *
 		 * @param {string} param The parameter name.
-		 * @param {string} [url=document.location.href] URL to search through, defaulting to the current document's URL.
+		 * @param {string} [url=location.href] URL to search through, defaulting to the current browsing location.
 		 * @return {Mixed} Parameter value or null.
 		 */
 		getParamValue: function ( param, url ) {
 			if ( url === undefined ) {
-				url = document.location.href;
+				url = location.href;
 			}
 			// Get last match, stop at hash
 			var	re = new RegExp( '^[^#]*[&?]' + $.escapeRE( param ) + '=([^&#]*)' ),
@@ -228,7 +228,7 @@
 		addPortletLink: function ( portlet, href, text, id, tooltip, accesskey, nextnode ) {
 			var $item, $link, $portlet, $ul;
 
-			// Check if there's atleast 3 arguments to prevent a TypeError
+			// Check if there's at least 3 arguments to prevent a TypeError
 			if ( arguments.length < 3 ) {
 				return null;
 			}
@@ -286,30 +286,38 @@
 			}
 
 			if ( tooltip ) {
-				$link.attr( 'title', tooltip ).updateTooltipAccessKeys();
+				$link.attr( 'title', tooltip );
 			}
 
 			if ( nextnode ) {
+				// Case: nextnode is a DOM element (was the only option before MW 1.17, in wikibits.js)
+				// Case: nextnode is a CSS selector for jQuery
 				if ( nextnode.nodeType || typeof nextnode === 'string' ) {
-					// nextnode is a DOM element (was the only option before MW 1.17, in wikibits.js)
-					// or nextnode is a CSS selector for jQuery
 					nextnode = $ul.find( nextnode );
-				} else if ( !nextnode.jquery || ( nextnode.length && nextnode[0].parentNode !== $ul[0] ) ) {
-					// Fallback
-					$ul.append( $item );
-					return $item[0];
+				} else if ( !nextnode.jquery ) {
+					// Error: Invalid nextnode
+					nextnode = undefined;
 				}
-				if ( nextnode.length === 1 ) {
-					// nextnode is a jQuery object that represents exactly one element
-					nextnode.before( $item );
-					return $item[0];
+				if ( nextnode && ( nextnode.length !== 1 || nextnode[0].parentNode !== $ul[0] ) ) {
+					// Error: nextnode must resolve to a single node
+					// Error: nextnode must have the associated <ul> as its parent
+					nextnode = undefined;
 				}
 			}
 
-			// Fallback (this is the default behavior)
-			$ul.append( $item );
-			return $item[0];
+			// Case: nextnode is a jQuery-wrapped DOM element
+			if ( nextnode ) {
+				nextnode.before( $item );
+			} else {
+				// Fallback (this is the default behavior)
+				$ul.append( $item );
+			}
 
+			// Update tooltip for the access key after inserting into DOM
+			// to get a localized access key label (bug 67946).
+			$link.updateTooltipAccessKeys();
+
+			return $item[0];
 		},
 
 		/**

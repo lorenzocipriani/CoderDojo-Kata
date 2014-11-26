@@ -25,6 +25,7 @@ class ParserOutput extends CacheTime {
 	public $mText,                       # The output text
 		$mLanguageLinks,              # List of the full text of language links, in the order they appear
 		$mCategories,                 # Map of category names to sort keys
+		$mIndicators = array(),       # Page status indicators, usually displayed in top-right corner
 		$mTitleText,                  # title text of the chosen language variant
 		$mLinks = array(),            # 2-D map of NS/DBK to ID for the links in the document. ID=zero for broken.
 		$mTemplates = array(),        # 2-D map of NS/DBK to ID for the template references. ID=zero for broken.
@@ -128,6 +129,13 @@ class ParserOutput extends CacheTime {
 
 	public function &getCategories() {
 		return $this->mCategories;
+	}
+
+	/**
+	 * @since 1.25
+	 */
+	public function getIndicators() {
+		return $this->mIndicators;
 	}
 
 	public function getTitleText() {
@@ -265,6 +273,13 @@ class ParserOutput extends CacheTime {
 
 	public function addCategory( $c, $sort ) {
 		$this->mCategories[$c] = $sort;
+	}
+
+	/**
+	 * @since 1.25
+	 */
+	public function setIndicator( $id, $content ) {
+		$this->mIndicators[$id] = $content;
 	}
 
 	public function addLanguageLink( $t ) {
@@ -469,6 +484,46 @@ class ParserOutput extends CacheTime {
 
 		$this->mHeadItems = array_merge( $this->mHeadItems, $out->getHeadItemsArray() );
 		$this->mPreventClickjacking = $this->mPreventClickjacking || $out->getPreventClickjacking();
+	}
+
+	/**
+	 * Add a tracking category, getting the title from a system message,
+	 * or print a debug message if the title is invalid.
+	 *
+	 * Please add any message that you use with this function to
+	 * $wgTrackingCategories. That way they will be listed on
+	 * Special:TrackingCategories.
+	 *
+	 * @param string $msg Message key
+	 * @param Title $title title of the page which is being tracked
+	 * @return bool Whether the addition was successful
+	 * @since 1.25
+	 */
+	public function addTrackingCategory( $msg, $title ) {
+		if ( $title->getNamespace() === NS_SPECIAL ) {
+			wfDebug( __METHOD__ . ": Not adding tracking category $msg to special page!\n" );
+			return false;
+		}
+
+		// Important to parse with correct title (bug 31469)
+		$cat = wfMessage( $msg )
+			->title( $title )
+			->inContentLanguage()
+			->text();
+
+		# Allow tracking categories to be disabled by setting them to "-"
+		if ( $cat === '-' ) {
+			return false;
+		}
+
+		$containerCategory = Title::makeTitleSafe( NS_CATEGORY, $cat );
+		if ( $containerCategory ) {
+			$this->addCategory( $containerCategory->getDBkey(), $this->getProperty( 'defaultsort' ) ?: '' );
+			return true;
+		} else {
+			wfDebug( __METHOD__ . ": [[MediaWiki:$msg]] is not a valid title!\n" );
+			return false;
+		}
 	}
 
 	/**

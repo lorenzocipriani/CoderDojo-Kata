@@ -115,6 +115,8 @@ class HTMLForm extends ContextSource {
 		'info' => 'HTMLInfoField',
 		'selectorother' => 'HTMLSelectOrOtherField',
 		'selectandother' => 'HTMLSelectAndOtherField',
+		'namespaceselect' => 'HTMLSelectNamespace',
+		'tagfilter' => 'HTMLTagFilter',
 		'submit' => 'HTMLSubmitField',
 		'hidden' => 'HTMLHiddenField',
 		'edittools' => 'HTMLEditTools',
@@ -788,9 +790,14 @@ class HTMLForm extends ContextSource {
 		$this->getOutput()->preventClickjacking();
 		$this->getOutput()->addModules( 'mediawiki.htmlform' );
 		if ( $this->isVForm() ) {
+			// This is required for VForm HTMLForms that use that style regardless
+			// of wgUseMediaWikiUIEverywhere (since they pre-date it).
+			// When wgUseMediaWikiUIEverywhere is removed, this should be consolidated
+			// with the addModuleStyles in SpecialPage->setHeaders.
 			$this->getOutput()->addModuleStyles( array(
 				'mediawiki.ui',
 				'mediawiki.ui.button',
+				'mediawiki.ui.input',
 			) );
 			// @todo Should vertical form set setWrapperLegend( false )
 			// to hide ugly fieldsets?
@@ -1045,10 +1052,18 @@ class HTMLForm extends ContextSource {
 
 	/**
 	 * Identify that the submit button in the form has a destructive action
-	 *
+	 * @since 1.24
 	 */
 	public function setSubmitDestructive() {
 		$this->mSubmitModifierClass = 'mw-ui-destructive';
+	}
+
+	/**
+	 * Identify that the submit button in the form has a progressive action
+	 * @since 1.25
+	 */
+	public function setSubmitProgressive() {
+		$this->mSubmitModifierClass = 'mw-ui-progressive';
 	}
 
 	/**

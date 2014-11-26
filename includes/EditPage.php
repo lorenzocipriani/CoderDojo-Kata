@@ -779,7 +779,8 @@ class EditPage {
 				// TODO: softened the check for cutover.  Once we determine
 				// that it is safe, we should complete the transition by
 				// removing the "edittime" clause.
-				$this->incompleteForm = ( !$request->getVal( 'wpUltimateParam' ) && is_null( $this->edittime ) );
+				$this->incompleteForm = ( !$request->getVal( 'wpUltimateParam' )
+					&& is_null( $this->edittime ) );
 			}
 			if ( $this->incompleteForm ) {
 				# If the form is incomplete, force to preview.
@@ -2106,6 +2107,17 @@ class EditPage {
 		if ( $namespace == NS_MEDIAWIKI ) {
 			# Show a warning if editing an interface message
 			$wgOut->wrapWikiMsg( "<div class='mw-editinginterface'>\n$1\n</div>", 'editinginterface' );
+			# If this is a default message (but not css or js),
+			# show a hint that it is translatable on translatewiki.net
+			if ( !$this->mTitle->hasContentModel( CONTENT_MODEL_CSS )
+				&& !$this->mTitle->hasContentModel( CONTENT_MODEL_JAVASCRIPT )
+			) {
+				$defaultMessageText = $this->mTitle->getDefaultMessageText();
+				if ( $defaultMessageText !== false ) {
+					$wgOut->wrapWikiMsg( "<div class='mw-translateinterface'>\n$1\n</div>",
+						'translateinterface' );
+				}
+			}
 		} elseif ( $namespace == NS_FILE ) {
 			# Show a hint to shared repo
 			$file = wfFindFile( $this->mTitle );
@@ -2137,7 +2149,8 @@ class EditPage {
 			if ( !( $user && $user->isLoggedIn() ) && !$ip ) { # User does not exist
 				$wgOut->wrapWikiMsg( "<div class=\"mw-userpage-userdoesnotexist error\">\n$1\n</div>",
 					array( 'userpage-userdoesnotexist', wfEscapeWikiText( $username ) ) );
-			} elseif ( !is_null( $block ) && $block->getType() != Block::TYPE_AUTO ) { # Show log extract if the user is currently blocked
+			} elseif ( !is_null( $block ) && $block->getType() != Block::TYPE_AUTO ) {
+				# Show log extract if the user is currently blocked
 				LogEventsList::showLogExtract(
 					$wgOut,
 					'block',
@@ -2204,7 +2217,10 @@ class EditPage {
 			if ( $title instanceof Title && $title->exists() && $title->userCan( 'read' ) ) {
 				global $wgOut;
 				// Added using template syntax, to take <noinclude>'s into account.
-				$wgOut->addWikiTextTitleTidy( '<div class="mw-editintro">{{:' . $title->getFullText() . '}}</div>', $this->mTitle );
+				$wgOut->addWikiTextTitleTidy(
+					'<div class="mw-editintro">{{:' . $title->getFullText() . '}}</div>',
+					$this->mTitle
+				);
 				return true;
 			}
 		}
@@ -2230,11 +2246,7 @@ class EditPage {
 	 *   $this->allowNonTextContent is not true.
 	 */
 	protected function toEditText( $content ) {
-		if ( $content === null || $content === false ) {
-			return $content;
-		}
-
-		if ( is_string( $content ) ) {
+		if ( $content === null || $content === false || is_string( $content ) ) {
 			return $content;
 		}
 
@@ -2944,7 +2956,7 @@ HTML
 		);
 
 		$pageLang = $this->mTitle->getPageLanguage();
-		$attribs['lang'] = $pageLang->getCode();
+		$attribs['lang'] = $pageLang->getHtmlCode();
 		$attribs['dir'] = $pageLang->getDir();
 
 		$wgOut->addHTML( Html::textarea( $name, $wikitext, $attribs ) );
@@ -3194,7 +3206,7 @@ HTML
 	}
 
 	protected function showStandardInputs( &$tabindex = 2 ) {
-		global $wgOut, $wgUseMediaWikiUIEverywhere;
+		global $wgOut;
 		$wgOut->addHTML( "<div class='editOptions'>\n" );
 
 		if ( $this->section != 'new' ) {
@@ -3226,10 +3238,8 @@ HTML
 			'target' => 'helpwindow',
 			'href' => $edithelpurl,
 		);
-		if ( $wgUseMediaWikiUIEverywhere ) {
-			$attrs['class'] = 'mw-ui-button mw-ui-quiet';
-		}
-		$edithelp = Html::element( 'a', $attrs, wfMessage( 'edithelp' )->text() ) .
+		$edithelp = Html::linkButton( wfMessage( 'edithelp' )->text(),
+			$attrs, array( 'mw-ui-quiet' ) ) .
 			wfMessage( 'word-separator' )->escaped() .
 			wfMessage( 'newwindow' )->parse();
 
@@ -3272,20 +3282,16 @@ HTML
 	 * @return string
 	 */
 	public function getCancelLink() {
-		global $wgUseMediaWikiUIEverywhere;
 		$cancelParams = array();
 		if ( !$this->isConflict && $this->oldid > 0 ) {
 			$cancelParams['oldid'] = $this->oldid;
 		}
 		$attrs = array( 'id' => 'mw-editform-cancel' );
-		if ( $wgUseMediaWikiUIEverywhere ) {
-			$attrs['class'] = 'mw-ui-button mw-ui-quiet';
-		}
 
 		return Linker::linkKnown(
 			$this->getContextTitle(),
 			wfMessage( 'cancel' )->parse(),
-			$attrs,
+			Html::buttonAttributes( $attrs, array( 'mw-ui-quiet' ) ),
 			$cancelParams
 		);
 	}
@@ -3640,7 +3646,7 @@ HTML
 			)
 		);
 
-		$script = 'mw.loader.using("mediawiki.action.edit", function() {';
+		$script = 'mw.loader.using("mediawiki.toolbar", function () {';
 		foreach ( $toolarray as $tool ) {
 			if ( !$tool ) {
 				continue;
@@ -3662,12 +3668,6 @@ HTML
 
 			$script .= Xml::encodeJsCall( 'mw.toolbar.addButton', $params );
 		}
-
-		// This used to be called on DOMReady from mediawiki.action.edit, which
-		// ended up causing race conditions with the setup code above.
-		$script .= "\n" .
-			"// Create button bar\n" .
-			"$(function() { mw.toolbar.init(); } );\n";
 
 		$script .= '});';
 		$wgOut->addScript( Html::inlineScript( ResourceLoader::makeLoaderConditionalScript( $script ) ) );
@@ -3754,47 +3754,33 @@ HTML
 	 * @return array
 	 */
 	public function getEditButtons( &$tabindex ) {
-		global $wgUseMediaWikiUIEverywhere;
-
 		$buttons = array();
 
 		$attribs = array(
 			'id' => 'wpSave',
 			'name' => 'wpSave',
-			'type' => 'submit',
 			'tabindex' => ++$tabindex,
-			'value' => wfMessage( 'savearticle' )->text(),
 		) + Linker::tooltipAndAccesskeyAttribs( 'save' );
-		if ( $wgUseMediaWikiUIEverywhere ) {
-			$attribs['class'] = 'mw-ui-button mw-ui-constructive';
-		}
-		$buttons['save'] = Xml::element( 'input', $attribs, '' );
+		$buttons['save'] = Html::submitButton( wfMessage( 'savearticle' )->text(),
+			$attribs, array( 'mw-ui-constructive' ) );
 
 		++$tabindex; // use the same for preview and live preview
 		$attribs = array(
 			'id' => 'wpPreview',
 			'name' => 'wpPreview',
-			'type' => 'submit',
 			'tabindex' => $tabindex,
-			'value' => wfMessage( 'showpreview' )->text(),
 		) + Linker::tooltipAndAccesskeyAttribs( 'preview' );
-		if ( $wgUseMediaWikiUIEverywhere ) {
-			$attribs['class'] = 'mw-ui-button mw-ui-progressive';
-		}
-		$buttons['preview'] = Xml::element( 'input', $attribs, '' );
+		$buttons['preview'] = Html::submitButton( wfMessage( 'showpreview' )->text(),
+			$attribs );
 		$buttons['live'] = '';
 
 		$attribs = array(
 			'id' => 'wpDiff',
 			'name' => 'wpDiff',
-			'type' => 'submit',
 			'tabindex' => ++$tabindex,
-			'value' => wfMessage( 'showdiff' )->text(),
 		) + Linker::tooltipAndAccesskeyAttribs( 'diff' );
-		if ( $wgUseMediaWikiUIEverywhere ) {
-			$attribs['class'] = 'mw-ui-button mw-ui-progressive';
-		}
-		$buttons['diff'] = Xml::element( 'input', $attribs, '' );
+		$buttons['diff'] = Html::submitButton( wfMessage( 'showdiff' )->text(),
+			$attribs );
 
 		wfRunHooks( 'EditPageBeforeEditButtons', array( &$this, &$buttons, &$tabindex ) );
 		return $buttons;
@@ -3998,7 +3984,7 @@ HTML
 				// Do some sanity checks. These aren't needed for reversibility,
 				// but should help keep the breakage down if the editor
 				// breaks one of the entities whilst editing.
-				if ( ( substr( $invalue, $i, 1 ) == ";" ) and ( strlen( $hexstring ) <= 6 ) ) {
+				if ( ( substr( $invalue, $i, 1 ) == ";" ) && ( strlen( $hexstring ) <= 6 ) ) {
 					$codepoint = hexdec( $hexstring );
 					$result .= codepointToUtf8( $codepoint );
 				} else {

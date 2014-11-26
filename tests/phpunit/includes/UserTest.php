@@ -214,8 +214,10 @@ class UserTest extends MediaWikiTestCase {
 	 */
 	public function testEditCount() {
 		$user = User::newFromName( 'UnitTestUser' );
-		$user->loadDefaults();
-		$user->addToDatabase();
+
+		if ( !$user->getId() ) {
+			$user->addToDatabase();
+		}
 
 		// let the user have a few (3) edits
 		$page = WikiPage::factory( Title::newFromText( 'Help:UserTest_EditCount' ) );
@@ -248,14 +250,17 @@ class UserTest extends MediaWikiTestCase {
 	 */
 	public function testOptions() {
 		$user = User::newFromName( 'UnitTestUser' );
-		$user->addToDatabase();
 
-		$user->setOption( 'someoption', 'test' );
+		if ( !$user->getId() ) {
+			$user->addToDatabase();
+		}
+
+		$user->setOption( 'userjs-someoption', 'test' );
 		$user->setOption( 'cols', 200 );
 		$user->saveSettings();
 
 		$user = User::newFromName( 'UnitTestUser' );
-		$this->assertEquals( 'test', $user->getOption( 'someoption' ) );
+		$this->assertEquals( 'test', $user->getOption( 'userjs-someoption' ) );
 		$this->assertEquals( 200, $user->getOption( 'cols' ) );
 	}
 
@@ -266,9 +271,9 @@ class UserTest extends MediaWikiTestCase {
 	 */
 	public function testAnonOptions() {
 		global $wgDefaultUserOptions;
-		$this->user->setOption( 'someoption', 'test' );
+		$this->user->setOption( 'userjs-someoption', 'test' );
 		$this->assertEquals( $wgDefaultUserOptions['cols'], $this->user->getOption( 'cols' ) );
-		$this->assertEquals( 'test', $this->user->getOption( 'someoption' ) );
+		$this->assertEquals( 'test', $this->user->getOption( 'userjs-someoption' ) );
 	}
 
 	/**
@@ -276,12 +281,10 @@ class UserTest extends MediaWikiTestCase {
 	 * @covers User::getPasswordExpired()
 	 */
 	public function testPasswordExpire() {
-		global $wgPasswordExpireGrace;
-		$wgTemp = $wgPasswordExpireGrace;
-		$wgPasswordExpireGrace = 3600 * 24 * 7; // 7 days
+		$this->setMwGlobals( 'wgPasswordExpireGrace', 3600 * 24 * 7 ); // 7 days
 
 		$user = User::newFromName( 'UnitTestUser' );
-		$user->loadDefaults();
+		$user->loadDefaults( 'UnitTestUser' );
 		$this->assertEquals( false, $user->getPasswordExpired() );
 
 		$ts = time() - ( 3600 * 24 * 1 ); // 1 day ago
@@ -291,8 +294,6 @@ class UserTest extends MediaWikiTestCase {
 		$ts = time() - ( 3600 * 24 * 10 ); // 10 days ago
 		$user->expirePassword( $ts );
 		$this->assertEquals( 'hard', $user->getPasswordExpired() );
-
-		$wgPasswordExpireGrace = $wgTemp;
 	}
 
 	/**

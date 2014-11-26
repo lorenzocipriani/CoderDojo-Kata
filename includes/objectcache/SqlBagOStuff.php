@@ -322,9 +322,7 @@ class SqlBagOStuff extends BagOStuff {
 			if ( $exptime == 0 ) {
 				$encExpiry = $this->getMaxDateTime( $db );
 			} else {
-				if ( $exptime < 3.16e8 ) { # ~10 years
-					$exptime += time();
-				}
+				$exptime = $this->convertExpiry( $exptime );
 				$encExpiry = $db->timestamp( $exptime );
 			}
 			foreach ( $serverKeys as $tableName => $tableKeys ) {
@@ -377,10 +375,7 @@ class SqlBagOStuff extends BagOStuff {
 			if ( $exptime == 0 ) {
 				$encExpiry = $this->getMaxDateTime( $db );
 			} else {
-				if ( $exptime < 3.16e8 ) { # ~10 years
-					$exptime += time();
-				}
-
+				$exptime = $this->convertExpiry( $exptime );
 				$encExpiry = $db->timestamp( $exptime );
 			}
 			// (bug 24425) use a replace if the db supports it instead of
@@ -421,9 +416,7 @@ class SqlBagOStuff extends BagOStuff {
 			if ( $exptime == 0 ) {
 				$encExpiry = $this->getMaxDateTime( $db );
 			} else {
-				if ( $exptime < 3.16e8 ) { # ~10 years
-					$exptime += time();
-				}
+				$exptime = $this->convertExpiry( $exptime );
 				$encExpiry = $db->timestamp( $exptime );
 			}
 			// (bug 24425) use a replace if the db supports it instead of
@@ -621,7 +614,8 @@ class SqlBagOStuff extends BagOStuff {
 								if ( $remainingSeconds > $totalSeconds ) {
 									$totalSeconds = $remainingSeconds;
 								}
-								$percent = ( $i + $remainingSeconds / $totalSeconds )
+								$processedSeconds = $totalSeconds - $remainingSeconds;
+								$percent = ( $i + $processedSeconds / $totalSeconds )
 									/ $this->shards * 100;
 							}
 							$percent = ( $percent / $this->numServers )
@@ -638,6 +632,11 @@ class SqlBagOStuff extends BagOStuff {
 		return true;
 	}
 
+	/**
+	 * Delete content of shard tables in every server.
+	 * Return true if the operation is successful, false otherwise.
+	 * @return bool
+	 */
 	public function deleteAll() {
 		for ( $serverIndex = 0; $serverIndex < $this->numServers; $serverIndex++ ) {
 			try {

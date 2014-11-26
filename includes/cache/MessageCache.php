@@ -72,7 +72,7 @@ class MessageCache {
 	protected $mExpiry;
 
 	/**
-	 * Message cache has it's own parser which it uses to transform
+	 * Message cache has its own parser which it uses to transform
 	 * messages.
 	 */
 	protected $mParserOptions, $mParser;
@@ -422,7 +422,7 @@ class MessageCache {
 			$this->mLoadedLanguages[$code] = true;
 		}
 		$info = implode( ', ', $where );
-		wfDebug( __METHOD__ . ": Loading $code... $info\n" );
+		wfDebugLog( 'MessageCache', __METHOD__ . ": Loading $code... $info\n" );
 		wfProfileOut( __METHOD__ );
 
 		return $success;
@@ -1059,6 +1059,7 @@ class MessageCache {
 		wfProfileIn( __METHOD__ );
 		if ( !$title || !$title instanceof Title ) {
 			global $wgTitle;
+			wfDebugLog( 'GlobalTitleFail', __METHOD__ . ' called by ' . wfGetAllCallers() . ' with no title set.' );
 			$title = $wgTitle;
 		}
 		// Sometimes $wgTitle isn't set either...

@@ -1,12 +1,12 @@
 /*!
- * OOjs UI v0.1.0-pre (f2c3f12959)
+ * OOjs UI v0.1.0-pre (7f4ba6b368)
  * https://www.mediawiki.org/wiki/OOjs_UI
  *
  * Copyright 2011–2014 OOjs Team and other contributors.
  * Released under the MIT license
  * http://oojs.mit-license.org
  *
- * Date: 2014-09-18T23:22:20Z
+ * Date: 2014-11-21T00:37:26Z
  */
 ( function ( OO ) {
 
@@ -93,6 +93,30 @@ OO.ui.getLocalValue = function ( obj, lang, fallback ) {
 	return undefined;
 };
 
+/**
+ * Check if a node is contained within another node
+ *
+ * Similar to jQuery#contains except a list of containers can be supplied
+ * and a boolean argument allows you to include the container in the match list
+ *
+ * @param {HTMLElement|HTMLElement[]} containers Container node(s) to search in
+ * @param {HTMLElement} contained Node to find
+ * @param {boolean} [matchContainers] Include the container(s) in the list of nodes to match, otherwise only match descendents
+ * @returns {boolean} The node is in the list of target nodes
+ */
+OO.ui.contains = function ( containers, contained, matchContainers ) {
+	var i;
+	if ( !Array.isArray( containers ) ) {
+		containers = [ containers ];
+	}
+	for ( i = containers.length - 1; i >= 0; i-- ) {
+		if ( ( matchContainers && contained === containers[i] ) || $.contains( containers[i], contained ) ) {
+			return true;
+		}
+	}
+	return false;
+};
+
 ( function () {
 	/**
 	 * Message store for the default implementation of OO.ui.msg
@@ -111,6 +135,10 @@ OO.ui.getLocalValue = function ( obj, lang, fallback ) {
 		'ooui-outline-control-remove': 'Remove item',
 		// Label for the toolbar group that contains a list of all other available tools
 		'ooui-toolbar-more': 'More',
+		// Label for the fake tool that expands the full list of tools in a toolbar group
+		'ooui-toolgroup-expand': 'More',
+		// Label for the fake tool that collapses the full list of tools in a toolbar group
+		'ooui-toolgroup-collapse': 'Fewer',
 		// Default label for the accept button of a confirmation dialog
 		'ooui-dialog-message-accept': 'OK',
 		// Default label for the reject button of a confirmation dialog
@@ -119,8 +147,10 @@ OO.ui.getLocalValue = function ( obj, lang, fallback ) {
 		'ooui-dialog-process-error': 'Something went wrong',
 		// Label for process dialog dismiss error button, visible when describing errors
 		'ooui-dialog-process-dismiss': 'Dismiss',
-		// Label for process dialog retry action button, visible when describing recoverable errors
-		'ooui-dialog-process-retry': 'Try again'
+		// Label for process dialog retry action button, visible when describing only recoverable errors
+		'ooui-dialog-process-retry': 'Try again',
+		// Label for process dialog retry action button, visible when describing only warnings
+		'ooui-dialog-process-continue': 'Continue'
 	};
 
 	/**
@@ -196,9 +226,10 @@ OO.ui.getLocalValue = function ( obj, lang, fallback ) {
  *
  * @constructor
  * @param {Object} [config] Configuration options
+ * @cfg {jQuery} [$pending] Element to mark as pending, defaults to this.$element
  */
 OO.ui.PendingElement = function OoUiPendingElement( config ) {
-	// Config initialisation
+	// Configuration initialization
 	config = config || {};
 
 	// Properties
@@ -248,6 +279,7 @@ OO.ui.PendingElement.prototype.isPending = function () {
 OO.ui.PendingElement.prototype.pushPending = function () {
 	if ( this.pending === 0 ) {
 		this.$pending.addClass( 'oo-ui-pendingElement-pending' );
+		this.updateThemeClasses();
 	}
 	this.pending++;
 
@@ -264,6 +296,7 @@ OO.ui.PendingElement.prototype.pushPending = function () {
 OO.ui.PendingElement.prototype.popPending = function () {
 	if ( this.pending === 1 ) {
 		this.$pending.removeClass( 'oo-ui-pendingElement-pending' );
+		this.updateThemeClasses();
 	}
 	this.pending = Math.max( 0, this.pending - 1 );
 
@@ -687,7 +720,7 @@ OO.ui.ActionSet.prototype.organize = function () {
  * @constructor
  * @param {Object} [config] Configuration options
  * @cfg {Function} [$] jQuery for the frame the widget is in
- * @cfg {string[]} [classes] CSS class names
+ * @cfg {string[]} [classes] CSS class names to add
  * @cfg {string} [text] Text to insert
  * @cfg {jQuery} [$content] Content elements to append (after text)
  */
@@ -699,6 +732,8 @@ OO.ui.Element = function OoUiElement( config ) {
 	this.$ = config.$ || OO.ui.Element.getJQuery( document );
 	this.$element = this.$( this.$.context.createElement( this.getTagName() ) );
 	this.elementGroup = null;
+	this.debouncedUpdateThemeClassesHandler = this.debouncedUpdateThemeClasses.bind( this );
+	this.updateThemeClassesPending = false;
 
 	// Initialization
 	if ( $.isArray( config.classes ) ) {
@@ -721,7 +756,7 @@ OO.initClass( OO.ui.Element );
 /**
  * HTML tag name.
  *
- * This may be ignored if getTagName is overridden.
+ * This may be ignored if #getTagName is overridden.
  *
  * @static
  * @inheritable
@@ -792,7 +827,7 @@ OO.ui.Element.getWindow = function ( obj ) {
  *
  * @static
  * @param {jQuery|HTMLElement|HTMLDocument|Window} obj Context to get the direction for
- * @return {string} Text direction, either `ltr` or `rtl`
+ * @return {string} Text direction, either 'ltr' or 'rtl'
  */
 OO.ui.Element.getDir = function ( obj ) {
 	var isDoc, isWin;
@@ -859,15 +894,35 @@ OO.ui.Element.getFrameOffset = function ( from, to, offset ) {
 /**
  * Get the offset between two elements.
  *
+ * The two elements may be in a different frame, but in that case the frame $element is in must
+ * be contained in the frame $anchor is in.
+ *
  * @static
- * @param {jQuery} $from
- * @param {jQuery} $to
+ * @param {jQuery} $element Element whose position to get
+ * @param {jQuery} $anchor Element to get $element's position relative to
  * @return {Object} Translated position coordinates, containing top and left properties
  */
-OO.ui.Element.getRelativePosition = function ( $from, $to ) {
-	var from = $from.offset(),
-		to = $to.offset();
-	return { top: Math.round( from.top - to.top ), left: Math.round( from.left - to.left ) };
+OO.ui.Element.getRelativePosition = function ( $element, $anchor ) {
+	var iframe, iframePos,
+		pos = $element.offset(),
+		anchorPos = $anchor.offset(),
+		elementDocument = this.getDocument( $element ),
+		anchorDocument = this.getDocument( $anchor );
+
+	// If $element isn't in the same document as $anchor, traverse up
+	while ( elementDocument !== anchorDocument ) {
+		iframe = elementDocument.defaultView.frameElement;
+		if ( !iframe ) {
+			throw new Error( '$element frame is not contained in $anchor frame' );
+		}
+		iframePos = $( iframe ).offset();
+		pos.left += iframePos.left;
+		pos.top += iframePos.top;
+		elementDocument = iframe.ownerDocument;
+	}
+	pos.left -= anchorPos.left;
+	pos.top -= anchorPos.top;
+	return pos;
 };
 
 /**
@@ -983,7 +1038,7 @@ OO.ui.Element.getClosestScrollableContainer = function ( el, dimension ) {
  *
  * @static
  * @param {HTMLElement} el Element to scroll into view
- * @param {Object} [config={}] Configuration config
+ * @param {Object} [config] Configuration options
  * @param {string} [config.duration] jQuery animation duration value
  * @param {string} [config.direction] Scroll in only one direction, e.g. 'x' or 'y', omit
  *  to scroll in both directions
@@ -1049,7 +1104,78 @@ OO.ui.Element.scrollIntoView = function ( el, config ) {
 	}
 };
 
+/**
+ * Bind a handler for an event on a DOM element.
+ *
+ * Used to be for working around a jQuery bug (jqbug.com/14180),
+ * but obsolete as of jQuery 1.11.0.
+ *
+ * @static
+ * @deprecated Use jQuery#on instead.
+ * @param {HTMLElement|jQuery} el DOM element
+ * @param {string} event Event to bind
+ * @param {Function} callback Callback to call when the event fires
+ */
+OO.ui.Element.onDOMEvent = function ( el, event, callback ) {
+	$( el ).on( event, callback );
+};
+
+/**
+ * Unbind a handler bound with #static-method-onDOMEvent.
+ *
+ * @deprecated Use jQuery#off instead.
+ * @static
+ * @param {HTMLElement|jQuery} el DOM element
+ * @param {string} event Event to unbind
+ * @param {Function} [callback] Callback to unbind
+ */
+OO.ui.Element.offDOMEvent = function ( el, event, callback ) {
+	$( el ).off( event, callback );
+};
+
 /* Methods */
+
+/**
+ * Check if element supports one or more methods.
+ *
+ * @param {string|string[]} methods Method or list of methods to check
+ * @return {boolean} All methods are supported
+ */
+OO.ui.Element.prototype.supports = function ( methods ) {
+	var i, len,
+		support = 0;
+
+	methods = $.isArray( methods ) ? methods : [ methods ];
+	for ( i = 0, len = methods.length; i < len; i++ ) {
+		if ( $.isFunction( this[methods[i]] ) ) {
+			support++;
+		}
+	}
+
+	return methods.length === support;
+};
+
+/**
+ * Update the theme-provided classes.
+ *
+ * @localdoc This is called in element mixins and widget classes anytime state changes.
+ *   Updating is debounced, minimizing overhead of changing multiple attributes and
+ *   guaranteeing that theme updates do not occur within an element's constructor
+ */
+OO.ui.Element.prototype.updateThemeClasses = function () {
+	if ( !this.updateThemeClassesPending ) {
+		this.updateThemeClassesPending = true;
+		setTimeout( this.debouncedUpdateThemeClassesHandler );
+	}
+};
+
+/**
+ * @private
+ */
+OO.ui.Element.prototype.debouncedUpdateThemeClasses = function () {
+	OO.ui.theme.updateElementClasses( this );
+	this.updateThemeClassesPending = false;
+};
 
 /**
  * Get the HTML tag name.
@@ -1118,7 +1244,7 @@ OO.ui.Element.prototype.setElementGroup = function ( group ) {
 /**
  * Scroll element into view.
  *
- * @param {Object} [config={}]
+ * @param {Object} [config] Configuration options
  */
 OO.ui.Element.prototype.scrollElementIntoView = function ( config ) {
 	return OO.ui.Element.scrollIntoView( this.$element[0], config );
@@ -1146,37 +1272,6 @@ OO.ui.Element.prototype.offDOMEvent = function ( event, callback ) {
 	OO.ui.Element.offDOMEvent( this.$element, event, callback );
 };
 
-( function () {
-	/**
-	 * Bind a handler for an event on a DOM element.
-	 *
-	 * Used to be for working around a jQuery bug (jqbug.com/14180),
-	 * but obsolete as of jQuery 1.11.0.
-	 *
-	 * @static
-	 * @deprecated Use jQuery#on instead.
-	 * @param {HTMLElement|jQuery} el DOM element
-	 * @param {string} event Event to bind
-	 * @param {Function} callback Callback to call when the event fires
-	 */
-	OO.ui.Element.onDOMEvent = function ( el, event, callback ) {
-		$( el ).on( event, callback );
-	};
-
-	/**
-	 * Unbind a handler bound with #static-method-onDOMEvent.
-	 *
-	 * @deprecated Use jQuery#off instead.
-	 * @static
-	 * @param {HTMLElement|jQuery} el DOM element
-	 * @param {string} event Event to unbind
-	 * @param {Function} [callback] Callback to unbind
-	 */
-	OO.ui.Element.offDOMEvent = function ( el, event, callback ) {
-		$( el ).off( event, callback );
-	};
-}() );
-
 /**
  * Container for elements.
  *
@@ -1189,7 +1284,7 @@ OO.ui.Element.prototype.offDOMEvent = function ( event, callback ) {
  * @param {Object} [config] Configuration options
  */
 OO.ui.Layout = function OoUiLayout( config ) {
-	// Initialize config
+	// Configuration initialization
 	config = config || {};
 
 	// Parent constructor
@@ -1261,7 +1356,7 @@ OO.mixinClass( OO.ui.Widget, OO.EventEmitter );
 /**
  * Check if the widget is disabled.
  *
- * @param {boolean} Button is disabled
+ * @return {boolean} Button is disabled
  */
 OO.ui.Widget.prototype.isDisabled = function () {
 	return this.disabled;
@@ -1293,6 +1388,7 @@ OO.ui.Widget.prototype.setDisabled = function ( disabled ) {
 		this.$element.toggleClass( 'oo-ui-widget-disabled', isDisabled );
 		this.$element.toggleClass( 'oo-ui-widget-enabled', !isDisabled );
 		this.emit( 'disable', isDisabled );
+		this.updateThemeClasses();
 	}
 	this.wasDisabled = isDisabled;
 
@@ -1390,12 +1486,14 @@ OO.ui.Window = function OoUiWindow( config ) {
 	this.loading = null;
 	this.size = config.size || this.constructor.static.size;
 	this.$frame = this.$( '<div>' );
+	this.$overlay = this.$( '<div>' );
 
 	// Initialization
 	this.$element
 		.addClass( 'oo-ui-window' )
-		.append( this.$frame );
+		.append( this.$frame, this.$overlay );
 	this.$frame.addClass( 'oo-ui-window-frame' );
+	this.$overlay.addClass( 'oo-ui-window-overlay' );
 
 	// NOTE: Additional intitialization will occur when #setManager is called
 };
@@ -1404,13 +1502,6 @@ OO.ui.Window = function OoUiWindow( config ) {
 
 OO.inheritClass( OO.ui.Window, OO.ui.Element );
 OO.mixinClass( OO.ui.Window, OO.EventEmitter );
-
-/* Events */
-
-/**
- * @event resize
- * @param {string} size Symbolic size name, e.g. 'small', 'medium', 'large', 'full'
- */
 
 /* Static Properties */
 
@@ -1878,17 +1969,17 @@ OO.ui.Window.prototype.initialize = function () {
 	this.$head = this.$( '<div>' );
 	this.$body = this.$( '<div>' );
 	this.$foot = this.$( '<div>' );
-	this.$overlay = this.$( '<div>' );
+	this.$innerOverlay = this.$( '<div>' );
 
 	// Events
-	this.$element.on( 'mousedown', OO.ui.bind( this.onMouseDown, this ) );
+	this.$element.on( 'mousedown', this.onMouseDown.bind( this ) );
 
 	// Initialization
 	this.$head.addClass( 'oo-ui-window-head' );
 	this.$body.addClass( 'oo-ui-window-body' );
 	this.$foot.addClass( 'oo-ui-window-foot' );
-	this.$overlay.addClass( 'oo-ui-window-overlay' );
-	this.$content.append( this.$head, this.$body, this.$foot, this.$overlay );
+	this.$innerOverlay.addClass( 'oo-ui-window-inner-overlay' );
+	this.$content.append( this.$head, this.$body, this.$foot, this.$innerOverlay );
 
 	return this;
 };
@@ -2099,7 +2190,7 @@ OO.ui.Window.prototype.load = function () {
 	doc.close();
 
 	// Properties
-	this.$ = OO.ui.Element.getJQuery( doc, this.$element );
+	this.$ = OO.ui.Element.getJQuery( doc, this.$iframe );
 	this.$content = this.$( '.oo-ui-window-content' ).attr( 'tabIndex', 0 );
 	this.$document = this.$( doc );
 
@@ -2353,7 +2444,7 @@ OO.ui.Dialog.prototype.initialize = function () {
 
 	// Events
 	if ( this.constructor.static.escapable ) {
-		this.$document.on( 'keydown', OO.ui.bind( this.onDocumentKeyDown, this ) );
+		this.$document.on( 'keydown', this.onDocumentKeyDown.bind( this ) );
 	}
 
 	// Initialization
@@ -2393,7 +2484,7 @@ OO.ui.Dialog.prototype.detachActions = function () {
 OO.ui.Dialog.prototype.executeAction = function ( action ) {
 	this.pushPending();
 	return this.getActionProcess( action ).execute()
-		.always( OO.ui.bind( this.popPending, this ) );
+		.always( this.popPending.bind( this ) );
 };
 
 /**
@@ -2465,10 +2556,10 @@ OO.ui.WindowManager = function OoUiWindowManager( config ) {
 	this.$ariaHidden = null;
 	this.requestedSize = null;
 	this.onWindowResizeTimeout = null;
-	this.onWindowResizeHandler = OO.ui.bind( this.onWindowResize, this );
-	this.afterWindowResizeHandler = OO.ui.bind( this.afterWindowResize, this );
-	this.onWindowMouseWheelHandler = OO.ui.bind( this.onWindowMouseWheel, this );
-	this.onDocumentKeyDownHandler = OO.ui.bind( this.onDocumentKeyDown, this );
+	this.onWindowResizeHandler = this.onWindowResize.bind( this );
+	this.afterWindowResizeHandler = this.afterWindowResize.bind( this );
+	this.onWindowMouseWheelHandler = this.onWindowMouseWheel.bind( this );
+	this.onDocumentKeyDownHandler = this.onDocumentKeyDown.bind( this );
 
 	// Initialization
 	this.$element
@@ -2508,6 +2599,13 @@ OO.mixinClass( OO.ui.WindowManager, OO.EventEmitter );
  *   is resolved the first argument will be a the closing data; progress notifications will be fired
  *   on the promise for `hold` and `teardown` when those processes are completed respectively.
  * @param {Object} data Window closing data
+ */
+
+/**
+ * Window was resized.
+ *
+ * @event resize
+ * @param {OO.ui.Window} win Window that was resized
  */
 
 /* Static Properties */
@@ -2575,8 +2673,10 @@ OO.ui.WindowManager.prototype.afterWindowResize = function () {
  *
  * @param {jQuery.Event} e Mouse wheel event
  */
-OO.ui.WindowManager.prototype.onWindowMouseWheel = function () {
-	return false;
+OO.ui.WindowManager.prototype.onWindowMouseWheel = function ( e ) {
+	// Kill all events in the parent window if the child window is isolated,
+	// or if the event didn't come from the child window
+	return !( this.shouldIsolate() || !$.contains( this.getCurrentWindow().$frame[0], e.target ) );
 };
 
 /**
@@ -2594,8 +2694,9 @@ OO.ui.WindowManager.prototype.onDocumentKeyDown = function ( e ) {
 		case OO.ui.Keys.UP:
 		case OO.ui.Keys.RIGHT:
 		case OO.ui.Keys.DOWN:
-			// Prevent any key events that might cause scrolling
-			return false;
+			// Kill all events in the parent window if the child window is isolated,
+			// or if the event didn't come from the child window
+			return !( this.shouldIsolate() || !$.contains( this.getCurrentWindow().$frame[0], e.target ) );
 	}
 };
 
@@ -2780,7 +2881,7 @@ OO.ui.WindowManager.prototype.openWindow = function ( win, data ) {
 	// Window opening
 	if ( opening.state() !== 'rejected' ) {
 		// Begin loading the window if it's not loading or loaded already - may take noticable time
-		// and we want to do this in paralell with any other preparatory actions
+		// and we want to do this in parallel with any other preparatory actions
 		if ( !win.isLoading() && !win.isLoaded() ) {
 			// Finish initializing the window (must be done after manager is attached to DOM)
 			win.setManager( this );
@@ -2837,7 +2938,7 @@ OO.ui.WindowManager.prototype.closeWindow = function ( win, data ) {
 	var manager = this,
 		preparing = [],
 		closing = $.Deferred(),
-		opened = this.opened;
+		opened;
 
 	// Argument handling
 	if ( typeof win === 'string' ) {
@@ -2874,6 +2975,7 @@ OO.ui.WindowManager.prototype.closeWindow = function ( win, data ) {
 			manager.closing = closing;
 			manager.preparingToClose = null;
 			manager.emit( 'closing', win, closing, data );
+			opened = manager.opened;
 			manager.opened = null;
 			opened.resolve( closing.promise(), data );
 			setTimeout( function () {
@@ -2955,7 +3057,7 @@ OO.ui.WindowManager.prototype.removeWindows = function ( names ) {
 		if ( !win ) {
 			throw new Error( 'Cannot remove window' );
 		}
-		promises.push( this.closeWindow( name ).then( OO.ui.bind( cleanup, null, name, win ) ) );
+		promises.push( this.closeWindow( name ).then( cleanup.bind( null, name, win ) ) );
 	}
 
 	return $.when.apply( $, promises );
@@ -2999,6 +3101,8 @@ OO.ui.WindowManager.prototype.updateWindowSize = function ( win ) {
 	this.$element.toggleClass( 'oo-ui-windowManager-fullscreen', size === 'full' );
 	this.$element.toggleClass( 'oo-ui-windowManager-floating', size !== 'full' );
 	win.setDimensions( sizes[size] );
+
+	this.emit( 'resize', win );
 
 	return this;
 };
@@ -3089,6 +3193,7 @@ OO.ui.WindowManager.prototype.destroy = function () {
  * @param {string|jQuery} message Description of error
  * @param {Object} [config] Configuration options
  * @cfg {boolean} [recoverable=true] Error is recoverable
+ * @cfg {boolean} [warning=false] Whether this error is a warning or not.
  */
 OO.ui.Error = function OoUiElement( message, config ) {
 	// Configuration initialization
@@ -3097,6 +3202,7 @@ OO.ui.Error = function OoUiElement( message, config ) {
 	// Properties
 	this.message = message instanceof jQuery ? message : String( message );
 	this.recoverable = config.recoverable === undefined || !!config.recoverable;
+	this.warning = !!config.warning;
 };
 
 /* Setup */
@@ -3112,6 +3218,15 @@ OO.initClass( OO.ui.Error );
  */
 OO.ui.Error.prototype.isRecoverable = function () {
 	return this.recoverable;
+};
+
+/**
+ * Check if the error is a warning
+ *
+ * @return {boolean} Error is warning
+ */
+OO.ui.Error.prototype.isWarning = function () {
+	return this.warning;
 };
 
 /**
@@ -3446,6 +3561,55 @@ OO.ui.ToolGroupFactory.static.getDefaultClasses = function () {
 };
 
 /**
+ * Theme logic.
+ *
+ * @abstract
+ * @class
+ *
+ * @constructor
+ * @param {Object} [config] Configuration options
+ */
+OO.ui.Theme = function OoUiTheme( config ) {
+	// Configuration initialization
+	config = config || {};
+};
+
+/* Setup */
+
+OO.initClass( OO.ui.Theme );
+
+/* Methods */
+
+/**
+ * Get a list of classes to be applied to a widget.
+ *
+ * The 'on' and 'off' lists combined MUST contain keys for all classes the theme adds or removes,
+ * otherwise state transitions will not work properly.
+ *
+ * @param {OO.ui.Element} element Element for which to get classes
+ * @return {Object.<string,string[]>} Categorized class names with `on` and `off` lists
+ */
+OO.ui.Theme.prototype.getElementClasses = function ( /* element */ ) {
+	return { on: [], off: [] };
+};
+
+/**
+ * Update CSS classes provided by the theme.
+ *
+ * For elements with theme logic hooks, this should be called anytime there's a state change.
+ *
+ * @param {OO.ui.Element} element Element for which to update classes
+ * @return {Object.<string,string[]>} Categorized class names with `on` and `off` lists
+ */
+OO.ui.Theme.prototype.updateElementClasses = function ( element ) {
+	var classes = this.getElementClasses( element );
+
+	element.$element
+		.removeClass( classes.off.join( ' ' ) )
+		.addClass( classes.on.join( ' ' ) );
+};
+
+/**
  * Element with a button.
  *
  * Buttons are used for controls which can be clicked. They can be configured to use tab indexing
@@ -3458,7 +3622,8 @@ OO.ui.ToolGroupFactory.static.getDefaultClasses = function () {
  * @param {Object} [config] Configuration options
  * @cfg {jQuery} [$button] Button node, assigned to #$button, omit to use a generated `<a>`
  * @cfg {boolean} [framed=true] Render button with a frame
- * @cfg {number} [tabIndex=0] Button's tab index, use null to have no tabIndex
+ * @cfg {number} [tabIndex=0] Button's tab index. Use 0 to use default ordering, use -1 to prevent
+ *   tab focusing.
  * @cfg {string} [accessKey] Button's access key
  */
 OO.ui.ButtonElement = function OoUiButtonElement( config ) {
@@ -3471,8 +3636,8 @@ OO.ui.ButtonElement = function OoUiButtonElement( config ) {
 	this.tabIndex = null;
 	this.accessKey = null;
 	this.active = false;
-	this.onMouseUpHandler = OO.ui.bind( this.onMouseUp, this );
-	this.onMouseDownHandler = OO.ui.bind( this.onMouseDown, this );
+	this.onMouseUpHandler = this.onMouseUp.bind( this );
+	this.onMouseDownHandler = this.onMouseDown.bind( this );
 
 	// Initialization
 	this.$element.addClass( 'oo-ui-buttonElement' );
@@ -3558,6 +3723,15 @@ OO.ui.ButtonElement.prototype.onMouseUp = function ( e ) {
 };
 
 /**
+ * Check if button has a frame.
+ *
+ * @return {boolean} Button is framed
+ */
+OO.ui.ButtonElement.prototype.isFramed = function () {
+	return this.framed;
+};
+
+/**
  * Toggle frame.
  *
  * @param {boolean} [framed] Make button framed, omit to toggle
@@ -3570,6 +3744,7 @@ OO.ui.ButtonElement.prototype.toggleFramed = function ( framed ) {
 		this.$element
 			.toggleClass( 'oo-ui-buttonElement-frameless', !framed )
 			.toggleClass( 'oo-ui-buttonElement-framed', framed );
+		this.updateThemeClasses();
 	}
 
 	return this;
@@ -3643,7 +3818,7 @@ OO.ui.ButtonElement.prototype.setActive = function ( value ) {
  * @cfg {jQuery} [$group] Container node, assigned to #$group, omit to use a generated `<div>`
  */
 OO.ui.GroupElement = function OoUiGroupElement( config ) {
-	// Configuration
+	// Configuration intialization
 	config = config || {};
 
 	// Properties
@@ -3709,7 +3884,7 @@ OO.ui.GroupElement.prototype.aggregate = function ( events ) {
 		groupEvent = events[itemEvent];
 
 		// Remove existing aggregated event
-		if ( itemEvent in this.aggregateItemEvents ) {
+		if ( Object.prototype.hasOwnProperty.call( this.aggregateItemEvents, itemEvent ) ) {
 			// Don't allow duplicate aggregations
 			if ( groupEvent ) {
 				throw new Error( 'Duplicate item event aggregation for ' + itemEvent );
@@ -3747,9 +3922,9 @@ OO.ui.GroupElement.prototype.aggregate = function ( events ) {
 /**
  * Add items.
  *
- * Adding an existing item (by value) will move it.
+ * Adding an existing item will move it.
  *
- * @param {OO.ui.Element[]} items Item
+ * @param {OO.ui.Element[]} items Items
  * @param {number} [index] Index to insert items at
  * @chainable
  */
@@ -3816,7 +3991,7 @@ OO.ui.GroupElement.prototype.removeItems = function ( items ) {
 				!$.isEmptyObject( this.aggregateItemEvents )
 			) {
 				remove = {};
-				if ( itemEvent in this.aggregateItemEvents ) {
+				if ( Object.prototype.hasOwnProperty.call( this.aggregateItemEvents, itemEvent ) ) {
 					remove[itemEvent] = [ 'emit', this.aggregateItemEvents[itemEvent], item ];
 				}
 				item.disconnect( this, remove );
@@ -3848,7 +4023,7 @@ OO.ui.GroupElement.prototype.clearItems = function () {
 			!$.isEmptyObject( this.aggregateItemEvents )
 		) {
 			remove = {};
-			if ( itemEvent in this.aggregateItemEvents ) {
+			if ( Object.prototype.hasOwnProperty.call( this.aggregateItemEvents, itemEvent ) ) {
 				remove[itemEvent] = [ 'emit', this.aggregateItemEvents[itemEvent], item ];
 			}
 			item.disconnect( this, remove );
@@ -3881,7 +4056,7 @@ OO.ui.GroupElement.prototype.clearItems = function () {
  * @cfg {string} [iconTitle] Icon title text or a function that returns text
  */
 OO.ui.IconElement = function OoUiIconElement( config ) {
-	// Config intialization
+	// Configuration intialization
 	config = config || {};
 
 	// Properties
@@ -3955,7 +4130,7 @@ OO.ui.IconElement.prototype.setIconElement = function ( $icon ) {
 };
 
 /**
- * Set icon.
+ * Set icon name.
  *
  * @param {Object|string|null} icon Symbolic icon name, or map of icon names keyed by language ID;
  *  use the 'default' key to specify the icon to be used when there is no icon in the user's
@@ -3979,6 +4154,7 @@ OO.ui.IconElement.prototype.setIcon = function ( icon ) {
 	}
 
 	this.$element.toggleClass( 'oo-ui-iconElement', !!this.icon );
+	this.updateThemeClasses();
 
 	return this;
 };
@@ -4010,9 +4186,9 @@ OO.ui.IconElement.prototype.setIconTitle = function ( iconTitle ) {
 };
 
 /**
- * Get icon.
+ * Get icon name.
  *
- * @return {string} Icon
+ * @return {string} Icon name
  */
 OO.ui.IconElement.prototype.getIcon = function () {
 	return this.icon;
@@ -4037,7 +4213,7 @@ OO.ui.IconElement.prototype.getIcon = function () {
  * @cfg {string} [indicatorTitle] Indicator title text or a function that returns text
  */
 OO.ui.IndicatorElement = function OoUiIndicatorElement( config ) {
-	// Config intialization
+	// Configuration initialization
 	config = config || {};
 
 	// Properties
@@ -4062,7 +4238,7 @@ OO.initClass( OO.ui.IndicatorElement );
  *
  * @static
  * @inheritable
- * @property {string|null} Symbolic indicator name or null for no indicator
+ * @property {string|null} Symbolic indicator name
  */
 OO.ui.IndicatorElement.static.indicator = null;
 
@@ -4101,7 +4277,7 @@ OO.ui.IndicatorElement.prototype.setIndicatorElement = function ( $indicator ) {
 };
 
 /**
- * Set indicator.
+ * Set indicator name.
  *
  * @param {string|null} indicator Symbolic name of indicator to use or null for no indicator
  * @chainable
@@ -4122,6 +4298,7 @@ OO.ui.IndicatorElement.prototype.setIndicator = function ( indicator ) {
 	}
 
 	this.$element.toggleClass( 'oo-ui-indicatorElement', !!this.indicator );
+	this.updateThemeClasses();
 
 	return this;
 };
@@ -4153,9 +4330,9 @@ OO.ui.IndicatorElement.prototype.setIndicatorTitle = function ( indicatorTitle )
 };
 
 /**
- * Get indicator.
+ * Get indicator name.
  *
- * @return {string} title Symbolic name of indicator
+ * @return {string} Symbolic name of indicator
  */
 OO.ui.IndicatorElement.prototype.getIndicator = function () {
 	return this.indicator;
@@ -4183,7 +4360,7 @@ OO.ui.IndicatorElement.prototype.getIndicatorTitle = function () {
  * @cfg {boolean} [autoFitLabel=true] Whether to fit the label or not.
  */
 OO.ui.LabelElement = function OoUiLabelElement( config ) {
-	// Config intialization
+	// Configuration initialization
 	config = config || {};
 
 	// Properties
@@ -4234,7 +4411,7 @@ OO.ui.LabelElement.prototype.setLabelElement = function ( $label ) {
  * Set the label.
  *
  * An empty string will result in the label being hidden. A string containing only whitespace will
- * be converted to a single &nbsp;
+ * be converted to a single `&nbsp;`.
  *
  * @param {jQuery|string|Function|null} label Label nodes; text; a function that returns nodes or
  *  text; or null for no label
@@ -4259,7 +4436,7 @@ OO.ui.LabelElement.prototype.setLabel = function ( label ) {
 /**
  * Get the label.
  *
- * @return {jQuery|string|Function|null} label Label nodes; text; a function that returns nodes or
+ * @return {jQuery|string|Function|null} Label nodes; text; a function that returns nodes or
  *  text; or null for no label
  */
 OO.ui.LabelElement.prototype.getLabel = function () {
@@ -4349,11 +4526,11 @@ OO.ui.PopupElement.prototype.getPopup = function () {
  *
  * @constructor
  * @param {Object} [config] Configuration options
- * @cfg {string[]} [flags=[]] Styling flags, e.g. 'primary', 'destructive' or 'constructive'
+ * @cfg {string|string[]} [flags] Styling flags, e.g. 'primary', 'destructive' or 'constructive'
  * @cfg {jQuery} [$flagged] Flagged node, assigned to #$flagged, omit to use #$element
  */
 OO.ui.FlaggedElement = function OoUiFlaggedElement( config ) {
-	// Config initialization
+	// Configuration initialization
 	config = config || {};
 
 	// Properties
@@ -4407,7 +4584,7 @@ OO.ui.FlaggedElement.prototype.hasFlag = function ( flag ) {
 /**
  * Get the names of all flags set.
  *
- * @return {string[]} flags Flag names
+ * @return {string[]} Flag names
  */
 OO.ui.FlaggedElement.prototype.getFlags = function () {
 	return Object.keys( this.flags );
@@ -4436,6 +4613,7 @@ OO.ui.FlaggedElement.prototype.clearFlags = function () {
 		this.$flagged.removeClass( remove.join( ' ' ) );
 	}
 
+	this.updateThemeClasses();
 	this.emit( 'flag', changes );
 
 	return this;
@@ -4501,6 +4679,7 @@ OO.ui.FlaggedElement.prototype.setFlags = function ( flags ) {
 			.removeClass( remove.join( ' ' ) );
 	}
 
+	this.updateThemeClasses();
 	this.emit( 'flag', changes );
 
 	return this;
@@ -4518,10 +4697,11 @@ OO.ui.FlaggedElement.prototype.setFlags = function ( flags ) {
  * @constructor
  * @param {Object} [config] Configuration options
  * @cfg {jQuery} [$titled] Titled node, assigned to #$titled, omit to use #$element
- * @cfg {string|Function} [title] Title text or a function that returns text
+ * @cfg {string|Function} [title] Title text or a function that returns text. If not provided, the
+ *    static property 'title' is used.
  */
 OO.ui.TitledElement = function OoUiTitledElement( config ) {
-	// Config intialization
+	// Configuration initialization
 	config = config || {};
 
 	// Properties
@@ -4627,8 +4807,8 @@ OO.ui.ClippableElement = function OoUiClippableElement( config ) {
 	this.$clippableWindow = null;
 	this.idealWidth = null;
 	this.idealHeight = null;
-	this.onClippableContainerScrollHandler = OO.ui.bind( this.clip, this );
-	this.onClippableWindowResizeHandler = OO.ui.bind( this.clip, this );
+	this.onClippableContainerScrollHandler = this.clip.bind( this );
+	this.onClippableWindowResizeHandler = this.clip.bind( this );
 
 	// Initialization
 	this.setClippableElement( config.$clippable || this.$element );
@@ -4781,14 +4961,14 @@ OO.ui.ClippableElement.prototype.clip = function () {
 		clipHeight = desiredHeight < naturalHeight;
 
 	if ( clipWidth ) {
-		this.$clippable.css( { overflowX: 'auto', width: desiredWidth } );
+		this.$clippable.css( { overflowX: 'scroll', width: desiredWidth } );
 	} else {
 		this.$clippable.css( 'width', this.idealWidth || '' );
 		this.$clippable.width(); // Force reflow for https://code.google.com/p/chromium/issues/detail?id=387290
 		this.$clippable.css( 'overflowX', '' );
 	}
 	if ( clipHeight ) {
-		this.$clippable.css( { overflowY: 'auto', height: desiredHeight } );
+		this.$clippable.css( { overflowY: 'scroll', height: desiredHeight } );
 	} else {
 		this.$clippable.css( 'height', this.idealHeight || '' );
 		this.$clippable.height(); // Force reflow for https://code.google.com/p/chromium/issues/detail?id=387290
@@ -4808,6 +4988,7 @@ OO.ui.ClippableElement.prototype.clip = function () {
  * @class
  * @extends OO.ui.Widget
  * @mixins OO.ui.IconElement
+ * @mixins OO.ui.FlaggedElement
  *
  * @constructor
  * @param {OO.ui.ToolGroup} toolGroup
@@ -4815,7 +4996,7 @@ OO.ui.ClippableElement.prototype.clip = function () {
  * @cfg {string|Function} [title] Title text or a function that returns text
  */
 OO.ui.Tool = function OoUiTool( toolGroup, config ) {
-	// Config intialization
+	// Configuration initialization
 	config = config || {};
 
 	// Parent constructor
@@ -4823,12 +5004,15 @@ OO.ui.Tool = function OoUiTool( toolGroup, config ) {
 
 	// Mixin constructors
 	OO.ui.IconElement.call( this, config );
+	OO.ui.FlaggedElement.call( this, config );
 
 	// Properties
 	this.toolGroup = toolGroup;
 	this.toolbar = this.toolGroup.getToolbar();
 	this.active = false;
 	this.$title = this.$( '<span>' );
+	this.$titleText = this.$( '<span>' );
+	this.$accel = this.$( '<span>' );
 	this.$link = this.$( '<a>' );
 	this.title = null;
 
@@ -4836,7 +5020,11 @@ OO.ui.Tool = function OoUiTool( toolGroup, config ) {
 	this.toolbar.connect( this, { updateState: 'onUpdateState' } );
 
 	// Initialization
-	this.$title.addClass( 'oo-ui-tool-title' );
+	this.$titleText.addClass( 'oo-ui-tool-title-text' );
+	this.$accel.addClass( 'oo-ui-tool-accel' );
+	this.$title
+		.addClass( 'oo-ui-tool-title' )
+		.append( this.$titleText, this.$accel );
 	this.$link
 		.addClass( 'oo-ui-tool-link' )
 		.append( this.$icon, this.$title )
@@ -4856,6 +5044,7 @@ OO.ui.Tool = function OoUiTool( toolGroup, config ) {
 
 OO.inheritClass( OO.ui.Tool, OO.ui.Widget );
 OO.mixinClass( OO.ui.Tool, OO.ui.IconElement );
+OO.mixinClass( OO.ui.Tool, OO.ui.FlaggedElement );
 
 /* Events */
 
@@ -4967,7 +5156,7 @@ OO.ui.Tool.prototype.onSelect = function () {
 /**
  * Check if the button is active.
  *
- * @param {boolean} Button is active
+ * @return {boolean} Button is active
  */
 OO.ui.Tool.prototype.isActive = function () {
 	return this.active;
@@ -5026,13 +5215,8 @@ OO.ui.Tool.prototype.updateTitle = function () {
 		accel = this.toolbar.getToolAccelerator( this.constructor.static.name ),
 		tooltipParts = [];
 
-	this.$title.empty()
-		.text( this.title )
-		.append(
-			this.$( '<span>' )
-				.addClass( 'oo-ui-tool-accel' )
-				.text( accel )
-		);
+	this.$titleText.text( this.title );
+	this.$accel.text( accel );
 
 	if ( titleTooltips && typeof this.title === 'string' && this.title.length ) {
 		tooltipParts.push( this.title );
@@ -5093,7 +5277,7 @@ OO.ui.Toolbar = function OoUiToolbar( toolFactory, toolGroupFactory, config ) {
 	// Events
 	this.$element
 		.add( this.$bar ).add( this.$group ).add( this.$actions )
-		.on( 'mousedown touchstart', OO.ui.bind( this.onPointerDown, this ) );
+		.on( 'mousedown touchstart', this.onPointerDown.bind( this ) );
 
 	// Initialization
 	this.$group.addClass( 'oo-ui-toolbar-tools' );
@@ -5188,7 +5372,7 @@ OO.ui.Toolbar.prototype.setup = function ( groups ) {
 				group.type = 'list';
 			}
 			if ( group.label === undefined ) {
-				group.label = 'ooui-toolbar-more';
+				group.label = OO.ui.msg( 'ooui-toolbar-more' );
 			}
 		}
 		// Check type has been registered
@@ -5305,14 +5489,14 @@ OO.ui.ToolGroup = function OoUiToolGroup( toolbar, config ) {
 	this.exclude = config.exclude || [];
 	this.promote = config.promote || [];
 	this.demote = config.demote || [];
-	this.onCapturedMouseUpHandler = OO.ui.bind( this.onCapturedMouseUp, this );
+	this.onCapturedMouseUpHandler = this.onCapturedMouseUp.bind( this );
 
 	// Events
 	this.$element.on( {
-		'mousedown touchstart': OO.ui.bind( this.onPointerDown, this ),
-		'mouseup touchend': OO.ui.bind( this.onPointerUp, this ),
-		mouseover: OO.ui.bind( this.onMouseOver, this ),
-		mouseout: OO.ui.bind( this.onMouseOut, this )
+		'mousedown touchstart': this.onPointerDown.bind( this ),
+		'mouseup touchend': this.onPointerUp.bind( this ),
+		mouseover: this.onMouseOver.bind( this ),
+		mouseout: this.onMouseOut.bind( this )
 	} );
 	this.toolbar.getToolFactory().connect( this, { register: 'onToolFactoryRegister' } );
 	this.aggregate( { disable: 'itemDisable' } );
@@ -5894,10 +6078,7 @@ OO.ui.ProcessDialog.prototype.initialize = function () {
 		$: this.$,
 		label: OO.ui.msg( 'ooui-dialog-process-dismiss' )
 	} );
-	this.retryButton = new OO.ui.ButtonWidget( {
-		$: this.$,
-		label: OO.ui.msg( 'ooui-dialog-process-retry' )
-	} );
+	this.retryButton = new OO.ui.ButtonWidget( { $: this.$ } );
 	this.$errors = this.$( '<div>' );
 	this.$errorsTitle = this.$( '<div>' );
 
@@ -5965,7 +6146,7 @@ OO.ui.ProcessDialog.prototype.attachActions = function () {
  */
 OO.ui.ProcessDialog.prototype.executeAction = function ( action ) {
 	OO.ui.ProcessDialog.super.prototype.executeAction.call( this, action )
-		.fail( OO.ui.bind( this.showErrors, this ) );
+		.fail( this.showErrors.bind( this ) );
 };
 
 /**
@@ -5991,11 +6172,15 @@ OO.ui.ProcessDialog.prototype.fitLabel = function () {
 OO.ui.ProcessDialog.prototype.showErrors = function ( errors ) {
 	var i, len, $item,
 		items = [],
-		recoverable = true;
+		recoverable = true,
+		warning = false;
 
 	for ( i = 0, len = errors.length; i < len; i++ ) {
 		if ( !errors[i].isRecoverable() ) {
 			recoverable = false;
+		}
+		if ( errors[i].isWarning() ) {
+			warning = true;
 		}
 		$item = this.$( '<div>' )
 			.addClass( 'oo-ui-processDialog-error' )
@@ -6007,6 +6192,11 @@ OO.ui.ProcessDialog.prototype.showErrors = function ( errors ) {
 		this.retryButton.clearFlags().setFlags( this.currentAction.getFlags() );
 	} else {
 		this.currentAction.setDisabled( true );
+	}
+	if ( warning ) {
+		this.retryButton.setLabel( OO.ui.msg( 'ooui-dialog-process-continue' ) );
+	} else {
+		this.retryButton.setLabel( OO.ui.msg( 'ooui-dialog-process-retry' ) );
 	}
 	this.retryButton.toggle( recoverable );
 	this.$errorsTitle.after( this.$errorItems );
@@ -6036,7 +6226,7 @@ OO.ui.ProcessDialog.prototype.hideErrors = function () {
  * @cfg {boolean} [editable=false] Show controls for adding, removing and reordering pages
  */
 OO.ui.BookletLayout = function OoUiBookletLayout( config ) {
-	// Initialize configuration
+	// Configuration initialization
 	config = config || {};
 
 	// Parent constructor
@@ -6074,7 +6264,7 @@ OO.ui.BookletLayout = function OoUiBookletLayout( config ) {
 	}
 	if ( this.autoFocus ) {
 		// Event 'focus' does not bubble, but 'focusin' does
-		this.stackLayout.onDOMEvent( 'focusin', OO.ui.bind( this.onStackLayoutFocus, this ) );
+		this.stackLayout.onDOMEvent( 'focusin', this.onStackLayoutFocus.bind( this ) );
 	}
 
 	// Initialization
@@ -6452,28 +6642,28 @@ OO.ui.BookletLayout.prototype.updateOutlineWidget = function () {
 /**
  * Layout made of a field and optional label.
  *
- * @class
- * @extends OO.ui.Layout
- * @mixins OO.ui.LabelElement
- *
  * Available label alignment modes include:
  *  - left: Label is before the field and aligned away from it, best for when the user will be
  *    scanning for a specific label in a form with many fields
  *  - right: Label is before the field and aligned toward it, best for forms the user is very
  *    familiar with and will tab through field checking quickly to verify which field they are in
- *  - top: Label is before the field and above it, best for when the use will need to fill out all
+ *  - top: Label is before the field and above it, best for when the user will need to fill out all
  *    fields from top to bottom in a form with few fields
  *  - inline: Label is after the field and aligned toward it, best for small boolean fields like
  *    checkboxes or radio buttons
  *
+ * @class
+ * @extends OO.ui.Layout
+ * @mixins OO.ui.LabelElement
+ *
  * @constructor
- * @param {OO.ui.Widget} field Field widget
+ * @param {OO.ui.Widget} fieldWidget Field widget
  * @param {Object} [config] Configuration options
  * @cfg {string} [align='left'] Alignment mode, either 'left', 'right', 'top' or 'inline'
  * @cfg {string} [help] Explanatory text shown as a '?' icon.
  */
-OO.ui.FieldLayout = function OoUiFieldLayout( field, config ) {
-	// Config initialization
+OO.ui.FieldLayout = function OoUiFieldLayout( fieldWidget, config ) {
+	// Configuration initialization
 	config = $.extend( { align: 'left' }, config );
 
 	// Parent constructor
@@ -6484,7 +6674,7 @@ OO.ui.FieldLayout = function OoUiFieldLayout( field, config ) {
 
 	// Properties
 	this.$field = this.$( '<div>' );
-	this.field = field;
+	this.fieldWidget = fieldWidget;
 	this.align = null;
 	if ( config.help ) {
 		this.popupButtonWidget = new OO.ui.PopupButtonWidget( {
@@ -6505,17 +6695,17 @@ OO.ui.FieldLayout = function OoUiFieldLayout( field, config ) {
 	}
 
 	// Events
-	if ( this.field instanceof OO.ui.InputWidget ) {
-		this.$label.on( 'click', OO.ui.bind( this.onLabelClick, this ) );
+	if ( this.fieldWidget instanceof OO.ui.InputWidget ) {
+		this.$label.on( 'click', this.onLabelClick.bind( this ) );
 	}
-	this.field.connect( this, { disable: 'onFieldDisable' } );
+	this.fieldWidget.connect( this, { disable: 'onFieldDisable' } );
 
 	// Initialization
 	this.$element.addClass( 'oo-ui-fieldLayout' );
 	this.$field
 		.addClass( 'oo-ui-fieldLayout-field' )
-		.toggleClass( 'oo-ui-fieldLayout-disable', this.field.isDisabled() )
-		.append( this.field.$element );
+		.toggleClass( 'oo-ui-fieldLayout-disable', this.fieldWidget.isDisabled() )
+		.append( this.fieldWidget.$element );
 	this.setAlignment( config.align );
 };
 
@@ -6523,6 +6713,10 @@ OO.ui.FieldLayout = function OoUiFieldLayout( field, config ) {
 
 OO.inheritClass( OO.ui.FieldLayout, OO.ui.Layout );
 OO.mixinClass( OO.ui.FieldLayout, OO.ui.LabelElement );
+
+/* Static Properties */
+
+OO.ui.FieldLayout.static.tagName = 'label';
 
 /* Methods */
 
@@ -6541,7 +6735,7 @@ OO.ui.FieldLayout.prototype.onFieldDisable = function ( value ) {
  * @param {jQuery.Event} e Mouse click event
  */
 OO.ui.FieldLayout.prototype.onLabelClick = function () {
-	this.field.simulateLabelClick();
+	this.fieldWidget.simulateLabelClick();
 	return false;
 };
 
@@ -6551,12 +6745,13 @@ OO.ui.FieldLayout.prototype.onLabelClick = function () {
  * @return {OO.ui.Widget} Field widget
  */
 OO.ui.FieldLayout.prototype.getField = function () {
-	return this.field;
+	return this.fieldWidget;
 };
 
 /**
  * Set the field alignment mode.
  *
+ * @private
  * @param {string} value Alignment mode, either 'left', 'right', 'top' or 'inline'
  * @chainable
  */
@@ -6572,17 +6767,16 @@ OO.ui.FieldLayout.prototype.setAlignment = function ( value ) {
 		} else {
 			this.$element.append( this.$help, this.$label, this.$field );
 		}
-		// Set classes
+		// Set classes. The following classes can be used here:
+		// * oo-ui-fieldLayout-align-left
+		// * oo-ui-fieldLayout-align-right
+		// * oo-ui-fieldLayout-align-top
+		// * oo-ui-fieldLayout-align-inline
 		if ( this.align ) {
 			this.$element.removeClass( 'oo-ui-fieldLayout-align-' + this.align );
 		}
+		this.$element.addClass( 'oo-ui-fieldLayout-align-' + value );
 		this.align = value;
-		// The following classes can be used here:
-		// oo-ui-fieldLayout-align-left
-		// oo-ui-fieldLayout-align-right
-		// oo-ui-fieldLayout-align-top
-		// oo-ui-fieldLayout-align-inline
-		this.$element.addClass( 'oo-ui-fieldLayout-align-' + this.align );
 	}
 
 	return this;
@@ -6595,17 +6789,16 @@ OO.ui.FieldLayout.prototype.setAlignment = function ( value ) {
  *
  * @class
  * @extends OO.ui.Layout
- * @mixins OO.ui.LabelElement
  * @mixins OO.ui.IconElement
+ * @mixins OO.ui.LabelElement
  * @mixins OO.ui.GroupElement
  *
  * @constructor
  * @param {Object} [config] Configuration options
- * @cfg {string} [icon] Symbolic icon name
  * @cfg {OO.ui.FieldLayout[]} [items] Items to add
  */
 OO.ui.FieldsetLayout = function OoUiFieldsetLayout( config ) {
-	// Config initialization
+	// Configuration initialization
 	config = config || {};
 
 	// Parent constructor
@@ -6632,10 +6825,6 @@ OO.mixinClass( OO.ui.FieldsetLayout, OO.ui.IconElement );
 OO.mixinClass( OO.ui.FieldsetLayout, OO.ui.LabelElement );
 OO.mixinClass( OO.ui.FieldsetLayout, OO.ui.GroupElement );
 
-/* Static Properties */
-
-OO.ui.FieldsetLayout.static.tagName = 'div';
-
 /**
  * Layout with an HTML form.
  *
@@ -6644,6 +6833,9 @@ OO.ui.FieldsetLayout.static.tagName = 'div';
  *
  * @constructor
  * @param {Object} [config] Configuration options
+ * @cfg {string} [method] HTML form `method` attribute
+ * @cfg {string} [action] HTML form `action` attribute
+ * @cfg {string} [enctype] HTML form `enctype` attribute
  */
 OO.ui.FormLayout = function OoUiFormLayout( config ) {
 	// Configuration initialization
@@ -6653,10 +6845,16 @@ OO.ui.FormLayout = function OoUiFormLayout( config ) {
 	OO.ui.FormLayout.super.call( this, config );
 
 	// Events
-	this.$element.on( 'submit', OO.ui.bind( this.onFormSubmit, this ) );
+	this.$element.on( 'submit', this.onFormSubmit.bind( this ) );
 
 	// Initialization
-	this.$element.addClass( 'oo-ui-formLayout' );
+	this.$element
+		.addClass( 'oo-ui-formLayout' )
+		.attr( {
+			method: config.method,
+			action: config.action,
+			enctype: config.enctype
+		} );
 };
 
 /* Setup */
@@ -6696,12 +6894,12 @@ OO.ui.FormLayout.prototype.onFormSubmit = function () {
  * @param {OO.ui.PanelLayout[]} panels Panels in the grid
  * @param {Object} [config] Configuration options
  * @cfg {number[]} [widths] Widths of columns as ratios
- * @cfg {number[]} [heights] Heights of columns as ratios
+ * @cfg {number[]} [heights] Heights of rows as ratios
  */
 OO.ui.GridLayout = function OoUiGridLayout( panels, config ) {
 	var i, len, widths;
 
-	// Config initialization
+	// Configuration initialization
 	config = config || {};
 
 	// Parent constructor
@@ -6722,10 +6920,7 @@ OO.ui.GridLayout = function OoUiGridLayout( panels, config ) {
 		this.layout( config.widths || [ 1 ], config.heights || [ 1 ] );
 	} else {
 		// Arrange in columns by default
-		widths = [];
-		for ( i = 0, len = this.panels.length; i < len; i++ ) {
-			widths[i] = 1;
-		}
+		widths = this.panels.map( function () { return 1; } );
 		this.layout( widths, [ 1 ] );
 	}
 };
@@ -6743,10 +6938,6 @@ OO.inheritClass( OO.ui.GridLayout, OO.ui.Layout );
 /**
  * @event update
  */
-
-/* Static Properties */
-
-OO.ui.GridLayout.static.tagName = 'div';
 
 /* Methods */
 
@@ -6797,33 +6988,34 @@ OO.ui.GridLayout.prototype.layout = function ( widths, heights ) {
  * @fires update
  */
 OO.ui.GridLayout.prototype.update = function () {
-	var x, y, panel,
+	var x, y, panel, width, height, dimensions,
 		i = 0,
-		left = 0,
 		top = 0,
-		dimensions,
-		width = 0,
-		height = 0,
+		left = 0,
 		cols = this.widths.length,
 		rows = this.heights.length;
 
 	for ( y = 0; y < rows; y++ ) {
 		height = this.heights[y];
 		for ( x = 0; x < cols; x++ ) {
-			panel = this.panels[i];
 			width = this.widths[x];
+			panel = this.panels[i];
 			dimensions = {
 				width: Math.round( width * 100 ) + '%',
 				height: Math.round( height * 100 ) + '%',
-				top: Math.round( top * 100 ) + '%',
-				// HACK: Work around IE bug by setting visibility: hidden; if width or height is zero
-				visibility: width === 0 || height === 0 ? 'hidden' : ''
+				top: Math.round( top * 100 ) + '%'
 			};
 			// If RTL, reverse:
 			if ( OO.ui.Element.getDir( this.$.context ) === 'rtl' ) {
 				dimensions.right = Math.round( left * 100 ) + '%';
 			} else {
 				dimensions.left = Math.round( left * 100 ) + '%';
+			}
+			// HACK: Work around IE bug by setting visibility: hidden; if width or height is zero
+			if ( width === 0 || height === 0 ) {
+				dimensions.visibility = 'hidden';
+			} else {
+				dimensions.visibility = '';
 			}
 			panel.$element.css( dimensions );
 			i++;
@@ -6846,7 +7038,7 @@ OO.ui.GridLayout.prototype.update = function () {
  * @return {OO.ui.PanelLayout} The panel at the given postion
  */
 OO.ui.GridLayout.prototype.getPanel = function ( x, y ) {
-	return this.panels[( x * this.widths.length ) + y];
+	return this.panels[ ( x * this.widths.length ) + y ];
 };
 
 /**
@@ -6862,8 +7054,12 @@ OO.ui.GridLayout.prototype.getPanel = function ( x, y ) {
  * @cfg {boolean} [expanded=true] Expand size to fill the entire parent element
  */
 OO.ui.PanelLayout = function OoUiPanelLayout( config ) {
-	// Config initialization
-	config = config || {};
+	// Configuration initialization
+	config = $.extend( {
+		scrollable: false,
+		padded: false,
+		expanded: true
+	}, config );
 
 	// Parent constructor
 	OO.ui.PanelLayout.super.call( this, config );
@@ -6873,12 +7069,10 @@ OO.ui.PanelLayout = function OoUiPanelLayout( config ) {
 	if ( config.scrollable ) {
 		this.$element.addClass( 'oo-ui-panelLayout-scrollable' );
 	}
-
 	if ( config.padded ) {
 		this.$element.addClass( 'oo-ui-panelLayout-padded' );
 	}
-
-	if ( config.expanded === undefined || config.expanded ) {
+	if ( config.expanded ) {
 		this.$element.addClass( 'oo-ui-panelLayout-expanded' );
 	}
 };
@@ -7015,7 +7209,7 @@ OO.ui.PageLayout.prototype.setActive = function ( active ) {
  * @cfg {OO.ui.Layout[]} [items] Layouts to add
  */
 OO.ui.StackLayout = function OoUiStackLayout( config ) {
-	// Config initialization
+	// Configuration initialization
 	config = $.extend( { scrollable: true }, config );
 
 	// Parent constructor
@@ -7236,13 +7430,13 @@ OO.ui.PopupToolGroup = function OoUiPopupToolGroup( toolbar, config ) {
 	// Properties
 	this.active = false;
 	this.dragging = false;
-	this.onBlurHandler = OO.ui.bind( this.onBlur, this );
+	this.onBlurHandler = this.onBlur.bind( this );
 	this.$handle = this.$( '<span>' );
 
 	// Events
 	this.$handle.on( {
-		'mousedown touchstart': OO.ui.bind( this.onHandlePointerDown, this ),
-		'mouseup touchend': OO.ui.bind( this.onHandlePointerUp, this )
+		'mousedown touchstart': this.onHandlePointerDown.bind( this ),
+		'mouseup touchend': this.onHandlePointerUp.bind( this )
 	} );
 
 	// Initialization
@@ -7308,7 +7502,9 @@ OO.ui.PopupToolGroup.prototype.onBlur = function ( e ) {
  */
 OO.ui.PopupToolGroup.prototype.onPointerUp = function ( e ) {
 	// e.which is 0 for touch events, 1 for left mouse button
-	if ( !this.isDisabled() && e.which <= 1 ) {
+	// Only close toolgroup when a tool was actually selected
+	// FIXME: this duplicates logic from the parent class
+	if ( !this.isDisabled() && e.which <= 1 && this.pressed && this.pressed === this.getTargetTool( e ) ) {
 		this.setActive( false );
 	}
 	return OO.ui.PopupToolGroup.super.prototype.onPointerUp.call( this, e );
@@ -7372,14 +7568,32 @@ OO.ui.PopupToolGroup.prototype.setActive = function ( value ) {
 /**
  * Drop down list layout of tools as labeled icon buttons.
  *
+ * This layout allows some tools to be collapsible, controlled by a "More" / "Fewer" option at the
+ * bottom of the main list. These are not automatically positioned at the bottom of the list; you
+ * may want to use the 'promote' and 'demote' configuration options to achieve this.
+ *
  * @class
  * @extends OO.ui.PopupToolGroup
  *
  * @constructor
  * @param {OO.ui.Toolbar} toolbar
  * @param {Object} [config] Configuration options
+ * @cfg {Array} [allowCollapse] List of tools that can be collapsed. Remaining tools will be always
+ *  shown.
+ * @cfg {Array} [forceExpand] List of tools that *may not* be collapsed. All remaining tools will be
+ *  allowed to be collapsed.
+ * @cfg {boolean} [expanded=false] Whether the collapsible tools are expanded by default
  */
 OO.ui.ListToolGroup = function OoUiListToolGroup( toolbar, config ) {
+	// Configuration intialization
+	config = config || {};
+
+	// Properties (must be set before parent constructor, which calls #populate)
+	this.allowCollapse = config.allowCollapse;
+	this.forceExpand = config.forceExpand;
+	this.expanded = config.expanded !== undefined ? config.expanded : false;
+	this.collapsibleTools = [];
+
 	// Parent constructor
 	OO.ui.ListToolGroup.super.call( this, toolbar, config );
 
@@ -7396,6 +7610,96 @@ OO.inheritClass( OO.ui.ListToolGroup, OO.ui.PopupToolGroup );
 OO.ui.ListToolGroup.static.accelTooltips = true;
 
 OO.ui.ListToolGroup.static.name = 'list';
+
+/* Methods */
+
+/**
+ * @inheritdoc
+ */
+OO.ui.ListToolGroup.prototype.populate = function () {
+	var i, len, allowCollapse = [];
+
+	OO.ui.ListToolGroup.super.prototype.populate.call( this );
+
+	// Update the list of collapsible tools
+	if ( this.allowCollapse !== undefined ) {
+		allowCollapse = this.allowCollapse;
+	} else if ( this.forceExpand !== undefined ) {
+		allowCollapse = OO.simpleArrayDifference( Object.keys( this.tools ), this.forceExpand );
+	}
+
+	this.collapsibleTools = [];
+	for ( i = 0, len = allowCollapse.length; i < len; i++ ) {
+		if ( this.tools[ allowCollapse[i] ] !== undefined ) {
+			this.collapsibleTools.push( this.tools[ allowCollapse[i] ] );
+		}
+	}
+
+	// Keep at the end, even when tools are added
+	this.$group.append( this.getExpandCollapseTool().$element );
+
+	this.getExpandCollapseTool().toggle( this.collapsibleTools.length !== 0 );
+
+	// Calling jQuery's .hide() and then .show() on a detached element caches the default value of its
+	// 'display' attribute and restores it, and the tool uses a <span> and can be hidden and re-shown.
+	// Is this a jQuery bug? http://jsfiddle.net/gtj4hu3h/
+	if ( this.getExpandCollapseTool().$element.css( 'display' ) === 'inline' ) {
+		this.getExpandCollapseTool().$element.css( 'display', 'inline-block' );
+	}
+
+	this.updateCollapsibleState();
+};
+
+OO.ui.ListToolGroup.prototype.getExpandCollapseTool = function () {
+	if ( this.expandCollapseTool === undefined ) {
+		var ExpandCollapseTool = function () {
+			ExpandCollapseTool.super.apply( this, arguments );
+		};
+
+		OO.inheritClass( ExpandCollapseTool, OO.ui.Tool );
+
+		ExpandCollapseTool.prototype.onSelect = function () {
+			this.toolGroup.expanded = !this.toolGroup.expanded;
+			this.toolGroup.updateCollapsibleState();
+			this.setActive( false );
+		};
+		ExpandCollapseTool.prototype.onUpdateState = function () {
+			// Do nothing. Tool interface requires an implementation of this function.
+		};
+
+		ExpandCollapseTool.static.name = 'more-fewer';
+
+		this.expandCollapseTool = new ExpandCollapseTool( this );
+	}
+	return this.expandCollapseTool;
+};
+
+/**
+ * @inheritdoc
+ */
+OO.ui.ListToolGroup.prototype.onPointerUp = function ( e ) {
+	var ret = OO.ui.ListToolGroup.super.prototype.onPointerUp.call( this, e );
+
+	// Do not close the popup when the user wants to show more/fewer tools
+	if ( this.$( e.target ).closest( '.oo-ui-tool-name-more-fewer' ).length ) {
+		// Prevent the popup list from being hidden
+		this.setActive( true );
+	}
+
+	return ret;
+};
+
+OO.ui.ListToolGroup.prototype.updateCollapsibleState = function () {
+	var i, len;
+
+	this.getExpandCollapseTool()
+		.setIcon( this.expanded ? 'collapse' : 'expand' )
+		.setTitle( OO.ui.msg( this.expanded ? 'ooui-toolgroup-collapse' : 'ooui-toolgroup-expand' ) );
+
+	for ( i = 0, len = this.collapsibleTools.length; i < len; i++ ) {
+		this.collapsibleTools[i].toggle( this.expanded );
+	}
+};
 
 /**
  * Drop down menu layout of tools as selectable menu items.
@@ -7607,21 +7911,26 @@ OO.ui.ItemWidget.prototype.setElementGroup = function ( group ) {
  *
  * Subclasses must handle `select` and `choose` events on #lookupMenu to make use of selections.
  *
+ * Subclasses that set the value of #lookupInput from their `choose` or `select` handler should
+ * be aware that this will cause new suggestions to be looked up for the new value. If this is
+ * not desired, disable lookups with #setLookupsDisabled, then set the value, then re-enable lookups.
+ *
  * @class
  * @abstract
  *
  * @constructor
  * @param {OO.ui.TextInputWidget} input Input widget
  * @param {Object} [config] Configuration options
- * @cfg {jQuery} [$overlay=this.$( 'body' )] Overlay layer
+ * @cfg {jQuery} [$overlay] Overlay for dropdown; defaults to relative positioning
+ * @cfg {jQuery} [$container=input.$element] Element to render menu under
  */
 OO.ui.LookupInputWidget = function OoUiLookupInputWidget( input, config ) {
-	// Config intialization
+	// Configuration initialization
 	config = config || {};
 
 	// Properties
 	this.lookupInput = input;
-	this.$overlay = config.$overlay || this.$( 'body,.oo-ui-window-overlay' ).last();
+	this.$overlay = config.$overlay || this.$element;
 	this.lookupMenu = new OO.ui.TextInputMenuWidget( this, {
 		$: OO.ui.Element.getJQuery( this.$overlay ),
 		input: this.lookupInput,
@@ -7630,21 +7939,22 @@ OO.ui.LookupInputWidget = function OoUiLookupInputWidget( input, config ) {
 	this.lookupCache = {};
 	this.lookupQuery = null;
 	this.lookupRequest = null;
-	this.populating = false;
+	this.lookupsDisabled = false;
+	this.lookupInputFocused = false;
 
 	// Events
-	this.$overlay.append( this.lookupMenu.$element );
-
 	this.lookupInput.$input.on( {
-		focus: OO.ui.bind( this.onLookupInputFocus, this ),
-		blur: OO.ui.bind( this.onLookupInputBlur, this ),
-		mousedown: OO.ui.bind( this.onLookupInputMouseDown, this )
+		focus: this.onLookupInputFocus.bind( this ),
+		blur: this.onLookupInputBlur.bind( this ),
+		mousedown: this.onLookupInputMouseDown.bind( this )
 	} );
 	this.lookupInput.connect( this, { change: 'onLookupInputChange' } );
+	this.lookupMenu.connect( this, { toggle: 'onLookupMenuToggle' } );
 
 	// Initialization
 	this.$element.addClass( 'oo-ui-lookupWidget' );
 	this.lookupMenu.$element.addClass( 'oo-ui-lookupWidget-menu' );
+	this.$overlay.append( this.lookupMenu.$element );
 };
 
 /* Methods */
@@ -7655,7 +7965,8 @@ OO.ui.LookupInputWidget = function OoUiLookupInputWidget( input, config ) {
  * @param {jQuery.Event} e Input focus event
  */
 OO.ui.LookupInputWidget.prototype.onLookupInputFocus = function () {
-	this.openLookupMenu();
+	this.lookupInputFocused = true;
+	this.populateLookupMenu();
 };
 
 /**
@@ -7664,7 +7975,8 @@ OO.ui.LookupInputWidget.prototype.onLookupInputFocus = function () {
  * @param {jQuery.Event} e Input blur event
  */
 OO.ui.LookupInputWidget.prototype.onLookupInputBlur = function () {
-	this.lookupMenu.toggle( false );
+	this.closeLookupMenu();
+	this.lookupInputFocused = false;
 };
 
 /**
@@ -7673,7 +7985,13 @@ OO.ui.LookupInputWidget.prototype.onLookupInputBlur = function () {
  * @param {jQuery.Event} e Input mouse down event
  */
 OO.ui.LookupInputWidget.prototype.onLookupInputMouseDown = function () {
-	this.openLookupMenu();
+	// Only open the menu if the input was already focused.
+	// This way we allow the user to open the menu again after closing it with Esc
+	// by clicking in the input. Opening (and populating) the menu when initially
+	// clicking into the input is handled by the focus handler.
+	if ( this.lookupInputFocused && !this.lookupMenu.isVisible() ) {
+		this.populateLookupMenu();
+	}
 };
 
 /**
@@ -7682,7 +8000,23 @@ OO.ui.LookupInputWidget.prototype.onLookupInputMouseDown = function () {
  * @param {string} value New input value
  */
 OO.ui.LookupInputWidget.prototype.onLookupInputChange = function () {
-	this.openLookupMenu();
+	if ( this.lookupInputFocused ) {
+		this.populateLookupMenu();
+	}
+};
+
+/**
+ * Handle the lookup menu being shown/hidden.
+ * @param {boolean} visible Whether the lookup menu is now visible.
+ */
+OO.ui.LookupInputWidget.prototype.onLookupMenuToggle = function ( visible ) {
+	if ( !visible ) {
+		// When the menu is hidden, abort any active request and clear the menu.
+		// This has to be done here in addition to closeLookupMenu(), because
+		// MenuWidget will close itself when the user presses Esc.
+		this.abortLookupRequest();
+		this.lookupMenu.clearItems();
+	}
 };
 
 /**
@@ -7695,35 +8029,61 @@ OO.ui.LookupInputWidget.prototype.getLookupMenu = function () {
 };
 
 /**
- * Open the menu.
+ * Disable or re-enable lookups.
+ *
+ * When lookups are disabled, calls to #populateLookupMenu will be ignored.
+ *
+ * @param {boolean} disabled Disable lookups
+ */
+OO.ui.LookupInputWidget.prototype.setLookupsDisabled = function ( disabled ) {
+	this.lookupsDisabled = !!disabled;
+};
+
+/**
+ * Open the menu. If there are no entries in the menu, this does nothing.
  *
  * @chainable
  */
 OO.ui.LookupInputWidget.prototype.openLookupMenu = function () {
-	var value = this.lookupInput.getValue();
-
-	if ( this.lookupMenu.$input.is( ':focus' ) && $.trim( value ) !== '' ) {
-		this.populateLookupMenu();
+	if ( !this.lookupMenu.isEmpty() ) {
 		this.lookupMenu.toggle( true );
-	} else {
-		this.lookupMenu
-			.clearItems()
-			.toggle( false );
 	}
-
 	return this;
 };
 
 /**
- * Populate lookup menu with current information.
+ * Close the menu, empty it, and abort any pending request.
+ *
+ * @chainable
+ */
+OO.ui.LookupInputWidget.prototype.closeLookupMenu = function () {
+	this.lookupMenu.toggle( false );
+	this.abortLookupRequest();
+	this.lookupMenu.clearItems();
+	return this;
+};
+
+/**
+ * Request menu items based on the input's current value, and when they arrive,
+ * populate the menu with these items and show the menu.
+ *
+ * If lookups have been disabled with #setLookupsDisabled, this function does nothing.
  *
  * @chainable
  */
 OO.ui.LookupInputWidget.prototype.populateLookupMenu = function () {
-	var widget = this;
+	var widget = this,
+		value = this.lookupInput.getValue();
 
-	if ( !this.populating ) {
-		this.populating = true;
+	if ( this.lookupsDisabled ) {
+		return;
+	}
+
+	// If the input is empty, clear the menu
+	if ( value === '' ) {
+		this.closeLookupMenu();
+	// Skip population if there is already a request pending for the current value
+	} else if ( value !== this.lookupQuery ) {
 		this.getLookupMenuItems()
 			.done( function ( items ) {
 				widget.lookupMenu.clearItems();
@@ -7732,15 +8092,12 @@ OO.ui.LookupInputWidget.prototype.populateLookupMenu = function () {
 						.addItems( items )
 						.toggle( true );
 					widget.initializeLookupMenuSelection();
-					widget.openLookupMenu();
 				} else {
-					widget.lookupMenu.toggle( true );
+					widget.lookupMenu.toggle( false );
 				}
-				widget.populating = false;
 			} )
 			.fail( function () {
 				widget.lookupMenu.clearItems();
-				widget.populating = false;
 			} );
 	}
 
@@ -7748,7 +8105,7 @@ OO.ui.LookupInputWidget.prototype.populateLookupMenu = function () {
 };
 
 /**
- * Set selection in the lookup menu with current information.
+ * Select and highlight the first selectable item in the menu.
  *
  * @chainable
  */
@@ -7763,67 +8120,78 @@ OO.ui.LookupInputWidget.prototype.initializeLookupMenuSelection = function () {
  * Get lookup menu items for the current query.
  *
  * @return {jQuery.Promise} Promise object which will be passed menu items as the first argument
- * of the done event
+ * of the done event. If the request was aborted to make way for a subsequent request,
+ * this promise will not be rejected: it will remain pending forever.
  */
 OO.ui.LookupInputWidget.prototype.getLookupMenuItems = function () {
 	var widget = this,
 		value = this.lookupInput.getValue(),
-		deferred = $.Deferred();
+		deferred = $.Deferred(),
+		ourRequest;
 
-	if ( value && value !== this.lookupQuery ) {
-		// Abort current request if query has changed
-		if ( this.lookupRequest ) {
-			this.lookupRequest.abort();
-			this.lookupQuery = null;
-			this.lookupRequest = null;
-		}
-		if ( value in this.lookupCache ) {
-			deferred.resolve( this.getLookupMenuItemsFromData( this.lookupCache[value] ) );
-		} else {
-			this.lookupQuery = value;
-			this.lookupRequest = this.getLookupRequest()
-				.always( function () {
+	this.abortLookupRequest();
+	if ( Object.prototype.hasOwnProperty.call( this.lookupCache, value ) ) {
+		deferred.resolve( this.getLookupMenuItemsFromData( this.lookupCache[value] ) );
+	} else {
+		this.lookupInput.pushPending();
+		this.lookupQuery = value;
+		ourRequest = this.lookupRequest = this.getLookupRequest();
+		ourRequest
+			.always( function () {
+				// We need to pop pending even if this is an old request, otherwise
+				// the widget will remain pending forever.
+				// TODO: this assumes that an aborted request will fail or succeed soon after
+				// being aborted, or at least eventually. It would be nice if we could popPending()
+				// at abort time, but only if we knew that we hadn't already called popPending()
+				// for that request.
+				widget.lookupInput.popPending();
+			} )
+			.done( function ( data ) {
+				// If this is an old request (and aborting it somehow caused it to still succeed),
+				// ignore its success completely
+				if ( ourRequest === widget.lookupRequest ) {
 					widget.lookupQuery = null;
 					widget.lookupRequest = null;
-				} )
-				.done( function ( data ) {
 					widget.lookupCache[value] = widget.getLookupCacheItemFromData( data );
 					deferred.resolve( widget.getLookupMenuItemsFromData( widget.lookupCache[value] ) );
-				} )
-				.fail( function () {
+				}
+			} )
+			.fail( function () {
+				// If this is an old request (or a request failing because it's being aborted),
+				// ignore its failure completely
+				if ( ourRequest === widget.lookupRequest ) {
+					widget.lookupQuery = null;
+					widget.lookupRequest = null;
 					deferred.reject();
-				} );
-			this.pushPending();
-			this.lookupRequest.always( function () {
-				widget.popPending();
+				}
 			} );
-		}
 	}
 	return deferred.promise();
+};
+
+/**
+ * Abort the currently pending lookup request, if any.
+ */
+OO.ui.LookupInputWidget.prototype.abortLookupRequest = function () {
+	var oldRequest = this.lookupRequest;
+	if ( oldRequest ) {
+		// First unset this.lookupRequest to the fail handler will notice
+		// that the request is no longer current
+		this.lookupRequest = null;
+		this.lookupQuery = null;
+		oldRequest.abort();
+	}
 };
 
 /**
  * Get a new request object of the current lookup query value.
  *
  * @abstract
- * @return {jqXHR} jQuery AJAX object, or promise object with an .abort() method
+ * @return {jQuery.Promise} jQuery AJAX object, or promise object with an .abort() method
  */
 OO.ui.LookupInputWidget.prototype.getLookupRequest = function () {
 	// Stub, implemented in subclass
 	return null;
-};
-
-/**
- * Handle successful lookup request.
- *
- * Overriding methods should call #populateLookupMenu when results are available and cache results
- * for future lookups in #lookupCache as an array of #OO.ui.MenuItemWidget objects.
- *
- * @abstract
- * @param {Mixed} data Response from server
- */
-OO.ui.LookupInputWidget.prototype.onLookupRequestDone = function () {
-	// Stub, implemented in subclass
 };
 
 /**
@@ -7834,6 +8202,18 @@ OO.ui.LookupInputWidget.prototype.onLookupRequestDone = function () {
  * @return {OO.ui.MenuItemWidget[]} Menu items
  */
 OO.ui.LookupInputWidget.prototype.getLookupMenuItemsFromData = function () {
+	// Stub, implemented in subclass
+	return [];
+};
+
+/**
+ * Get lookup cache item from server response data.
+ *
+ * @abstract
+ * @param {Mixed} data Response from server
+ * @return {Mixed} Cached result data
+ */
+OO.ui.LookupInputWidget.prototype.getLookupCacheItemFromData = function () {
 	// Stub, implemented in subclass
 	return [];
 };
@@ -7854,7 +8234,7 @@ OO.ui.LookupInputWidget.prototype.getLookupMenuItemsFromData = function () {
  */
 OO.ui.OutlineControlsWidget = function OoUiOutlineControlsWidget( outline, config ) {
 	// Configuration initialization
-	config = $.extend( { icon: 'add-item' }, config );
+	config = $.extend( { icon: 'add' }, config );
 
 	// Parent constructor
 	OO.ui.OutlineControlsWidget.super.call( this, config );
@@ -8024,9 +8404,12 @@ OO.ui.ToggleWidget.prototype.setValue = function ( value ) {
  *
  * @constructor
  * @param {Object} [config] Configuration options
- * @cfg {OO.ui.ButtonWidget} [items] Buttons to add
+ * @cfg {OO.ui.ButtonWidget[]} [items] Buttons to add
  */
 OO.ui.ButtonGroupWidget = function OoUiButtonGroupWidget( config ) {
+	// Configuration initialization
+	config = config || {};
+
 	// Parent constructor
 	OO.ui.ButtonGroupWidget.super.call( this, config );
 
@@ -8074,7 +8457,7 @@ OO.ui.ButtonWidget = function OoUiButtonWidget( config ) {
 	OO.ui.IconElement.call( this, config );
 	OO.ui.IndicatorElement.call( this, config );
 	OO.ui.LabelElement.call( this, config );
-	OO.ui.TitledElement.call( this, config, $.extend( {}, config, { $titled: this.$button } ) );
+	OO.ui.TitledElement.call( this, $.extend( {}, config, { $titled: this.$button } ) );
 	OO.ui.FlaggedElement.call( this, config );
 
 	// Properties
@@ -8084,8 +8467,8 @@ OO.ui.ButtonWidget = function OoUiButtonWidget( config ) {
 
 	// Events
 	this.$button.on( {
-		click: OO.ui.bind( this.onClick, this ),
-		keypress: OO.ui.bind( this.onKeyPress, this )
+		click: this.onClick.bind( this ),
+		keypress: this.onKeyPress.bind( this )
 	} );
 
 	// Initialization
@@ -8139,7 +8522,7 @@ OO.ui.ButtonWidget.prototype.onClick = function () {
  */
 OO.ui.ButtonWidget.prototype.onKeyPress = function ( e ) {
 	if ( !this.isDisabled() && ( e.which === OO.ui.Keys.SPACE || e.which === OO.ui.Keys.ENTER ) ) {
-		this.onClick();
+		this.emit( 'click' );
 		if ( this.isHyperlink ) {
 			return true;
 		}
@@ -8218,9 +8601,10 @@ OO.ui.ButtonWidget.prototype.setTarget = function ( target ) {
  * @param {Object} [config] Configuration options
  * @cfg {string} [action] Symbolic action name
  * @cfg {string[]} [modes] Symbolic mode names
+ * @cfg {boolean} [framed=false] Render button with a frame
  */
 OO.ui.ActionWidget = function OoUiActionWidget( config ) {
-	// Config intialization
+	// Configuration initialization
 	config = $.extend( { framed: false }, config );
 
 	// Parent constructor
@@ -8469,6 +8853,117 @@ OO.ui.ToggleButtonWidget.prototype.setValue = function ( value ) {
 };
 
 /**
+ * Dropdown menu of options.
+ *
+ * Dropdown menus provide a control for accessing a menu and compose a menu within the widget, which
+ * can be accessed using the #getMenu method.
+ *
+ * Use with OO.ui.MenuItemWidget.
+ *
+ * @class
+ * @extends OO.ui.Widget
+ * @mixins OO.ui.IconElement
+ * @mixins OO.ui.IndicatorElement
+ * @mixins OO.ui.LabelElement
+ * @mixins OO.ui.TitledElement
+ *
+ * @constructor
+ * @param {Object} [config] Configuration options
+ * @cfg {Object} [menu] Configuration options to pass to menu widget
+ */
+OO.ui.DropdownWidget = function OoUiDropdownWidget( config ) {
+	// Configuration initialization
+	config = $.extend( { indicator: 'down' }, config );
+
+	// Parent constructor
+	OO.ui.DropdownWidget.super.call( this, config );
+
+	// Mixin constructors
+	OO.ui.IconElement.call( this, config );
+	OO.ui.IndicatorElement.call( this, config );
+	OO.ui.LabelElement.call( this, config );
+	OO.ui.TitledElement.call( this, $.extend( {}, config, { $titled: this.$label } ) );
+
+	// Properties
+	this.menu = new OO.ui.MenuWidget( $.extend( { $: this.$, widget: this }, config.menu ) );
+	this.$handle = this.$( '<span>' );
+
+	// Events
+	this.$element.on( { click: this.onClick.bind( this ) } );
+	this.menu.connect( this, { select: 'onMenuSelect' } );
+
+	// Initialization
+	this.$handle
+		.addClass( 'oo-ui-dropdownWidget-handle' )
+		.append( this.$icon, this.$label, this.$indicator );
+	this.$element
+		.addClass( 'oo-ui-dropdownWidget' )
+		.append( this.$handle, this.menu.$element );
+};
+
+/* Setup */
+
+OO.inheritClass( OO.ui.DropdownWidget, OO.ui.Widget );
+OO.mixinClass( OO.ui.DropdownWidget, OO.ui.IconElement );
+OO.mixinClass( OO.ui.DropdownWidget, OO.ui.IndicatorElement );
+OO.mixinClass( OO.ui.DropdownWidget, OO.ui.LabelElement );
+OO.mixinClass( OO.ui.DropdownWidget, OO.ui.TitledElement );
+
+/* Methods */
+
+/**
+ * Get the menu.
+ *
+ * @return {OO.ui.MenuWidget} Menu of widget
+ */
+OO.ui.DropdownWidget.prototype.getMenu = function () {
+	return this.menu;
+};
+
+/**
+ * Handles menu select events.
+ *
+ * @param {OO.ui.MenuItemWidget} item Selected menu item
+ */
+OO.ui.DropdownWidget.prototype.onMenuSelect = function ( item ) {
+	var selectedLabel;
+
+	if ( !item ) {
+		return;
+	}
+
+	selectedLabel = item.getLabel();
+
+	// If the label is a DOM element, clone it, because setLabel will append() it
+	if ( selectedLabel instanceof jQuery ) {
+		selectedLabel = selectedLabel.clone();
+	}
+
+	this.setLabel( selectedLabel );
+};
+
+/**
+ * Handles mouse click events.
+ *
+ * @param {jQuery.Event} e Mouse click event
+ */
+OO.ui.DropdownWidget.prototype.onClick = function ( e ) {
+	// Skip clicks within the menu
+	if ( $.contains( this.menu.$element[0], e.target ) ) {
+		return;
+	}
+
+	if ( !this.isDisabled() ) {
+		if ( this.menu.isVisible() ) {
+			this.menu.toggle( false );
+		} else {
+			this.menu.toggle( true );
+		}
+	}
+	return false;
+};
+
+/**
  * Icon widget.
  *
  * See OO.ui.IconElement for more information.
@@ -8482,7 +8977,7 @@ OO.ui.ToggleButtonWidget.prototype.setValue = function ( value ) {
  * @param {Object} [config] Configuration options
  */
 OO.ui.IconWidget = function OoUiIconWidget( config ) {
-	// Config intialization
+	// Configuration initialization
 	config = config || {};
 
 	// Parent constructor
@@ -8520,7 +9015,7 @@ OO.ui.IconWidget.static.tagName = 'span';
  * @param {Object} [config] Configuration options
  */
 OO.ui.IndicatorWidget = function OoUiIndicatorWidget( config ) {
-	// Config intialization
+	// Configuration initialization
 	config = config || {};
 
 	// Parent constructor
@@ -8545,164 +9040,55 @@ OO.mixinClass( OO.ui.IndicatorWidget, OO.ui.TitledElement );
 OO.ui.IndicatorWidget.static.tagName = 'span';
 
 /**
- * Inline menu of options.
- *
- * Inline menus provide a control for accessing a menu and compose a menu within the widget, which
- * can be accessed using the #getMenu method.
- *
- * Use with OO.ui.MenuOptionWidget.
- *
- * @class
- * @extends OO.ui.Widget
- * @mixins OO.ui.IconElement
- * @mixins OO.ui.IndicatorElement
- * @mixins OO.ui.LabelElement
- * @mixins OO.ui.TitledElement
- *
- * @constructor
- * @param {Object} [config] Configuration options
- * @cfg {Object} [menu] Configuration options to pass to menu widget
- */
-OO.ui.InlineMenuWidget = function OoUiInlineMenuWidget( config ) {
-	// Configuration initialization
-	config = $.extend( { indicator: 'down' }, config );
-
-	// Parent constructor
-	OO.ui.InlineMenuWidget.super.call( this, config );
-
-	// Mixin constructors
-	OO.ui.IconElement.call( this, config );
-	OO.ui.IndicatorElement.call( this, config );
-	OO.ui.LabelElement.call( this, config );
-	OO.ui.TitledElement.call( this, $.extend( {}, config, { $titled: this.$label } ) );
-
-	// Properties
-	this.menu = new OO.ui.MenuWidget( $.extend( { $: this.$, widget: this }, config.menu ) );
-	this.$handle = this.$( '<span>' );
-
-	// Events
-	this.$element.on( { click: OO.ui.bind( this.onClick, this ) } );
-	this.menu.connect( this, { select: 'onMenuSelect' } );
-
-	// Initialization
-	this.$handle
-		.addClass( 'oo-ui-inlineMenuWidget-handle' )
-		.append( this.$icon, this.$label, this.$indicator );
-	this.$element
-		.addClass( 'oo-ui-inlineMenuWidget' )
-		.append( this.$handle, this.menu.$element );
-};
-
-/* Setup */
-
-OO.inheritClass( OO.ui.InlineMenuWidget, OO.ui.Widget );
-OO.mixinClass( OO.ui.InlineMenuWidget, OO.ui.IconElement );
-OO.mixinClass( OO.ui.InlineMenuWidget, OO.ui.IndicatorElement );
-OO.mixinClass( OO.ui.InlineMenuWidget, OO.ui.LabelElement );
-OO.mixinClass( OO.ui.InlineMenuWidget, OO.ui.TitledElement );
-
-/* Methods */
-
-/**
- * Get the menu.
- *
- * @return {OO.ui.MenuWidget} Menu of widget
- */
-OO.ui.InlineMenuWidget.prototype.getMenu = function () {
-	return this.menu;
-};
-
-/**
- * Handles menu select events.
- *
- * @param {OO.ui.MenuItemWidget} item Selected menu item
- */
-OO.ui.InlineMenuWidget.prototype.onMenuSelect = function ( item ) {
-	var selectedLabel;
-
-	if ( !item ) {
-		return;
-	}
-
-	selectedLabel = item.getLabel();
-
-	// If the label is a DOM element, clone it, because setLabel will append() it
-	if ( selectedLabel instanceof jQuery ) {
-		selectedLabel = selectedLabel.clone();
-	}
-
-	this.setLabel( selectedLabel );
-};
-
-/**
- * Handles mouse click events.
- *
- * @param {jQuery.Event} e Mouse click event
- */
-OO.ui.InlineMenuWidget.prototype.onClick = function ( e ) {
-	// Skip clicks within the menu
-	if ( $.contains( this.menu.$element[0], e.target ) ) {
-		return;
-	}
-
-	if ( !this.isDisabled() ) {
-		if ( this.menu.isVisible() ) {
-			this.menu.toggle( false );
-		} else {
-			this.menu.toggle( true );
-		}
-	}
-	return false;
-};
-
-/**
  * Base class for input widgets.
  *
  * @abstract
  * @class
  * @extends OO.ui.Widget
+ * @mixins OO.ui.FlaggedElement
  *
  * @constructor
  * @param {Object} [config] Configuration options
  * @cfg {string} [name=''] HTML input name
  * @cfg {string} [value=''] Input value
- * @cfg {boolean} [readOnly=false] Prevent changes
  * @cfg {Function} [inputFilter] Filter function to apply to the input. Takes a string argument and returns a string.
  */
 OO.ui.InputWidget = function OoUiInputWidget( config ) {
-	// Config intialization
-	config = $.extend( { readOnly: false }, config );
+	// Configuration initialization
+	config = config || {};
 
 	// Parent constructor
 	OO.ui.InputWidget.super.call( this, config );
 
+	// Mixin constructors
+	OO.ui.FlaggedElement.call( this, config );
+
 	// Properties
 	this.$input = this.getInputElement( config );
 	this.value = '';
-	this.readOnly = false;
 	this.inputFilter = config.inputFilter;
 
 	// Events
-	this.$input.on( 'keydown mouseup cut paste change input select', OO.ui.bind( this.onEdit, this ) );
+	this.$input.on( 'keydown mouseup cut paste change input select', this.onEdit.bind( this ) );
 
 	// Initialization
 	this.$input
 		.attr( 'name', config.name )
 		.prop( 'disabled', this.isDisabled() );
-	this.setReadOnly( config.readOnly );
-	this.$element.addClass( 'oo-ui-inputWidget' ).append( this.$input );
+	this.$element.addClass( 'oo-ui-inputWidget' ).append( this.$input, $( '<span>' ) );
 	this.setValue( config.value );
 };
 
 /* Setup */
 
 OO.inheritClass( OO.ui.InputWidget, OO.ui.Widget );
+OO.mixinClass( OO.ui.InputWidget, OO.ui.FlaggedElement );
 
 /* Events */
 
 /**
  * @event change
- * @param value
+ * @param {string} value
  */
 
 /* Methods */
@@ -8710,6 +9096,7 @@ OO.inheritClass( OO.ui.InputWidget, OO.ui.Widget );
 /**
  * Get input element.
  *
+ * @private
  * @param {Object} [config] Configuration options
  * @return {jQuery} Input element
  */
@@ -8780,8 +9167,9 @@ OO.ui.InputWidget.prototype.setValue = function ( value ) {
 /**
  * Sanitize incoming value.
  *
- * Ensures value is a string, and converts undefined and null to empty strings.
+ * Ensures value is a string, and converts undefined and null to empty string.
  *
+ * @private
  * @param {string} value Original value
  * @return {string} Sanitized value
  */
@@ -8806,29 +9194,6 @@ OO.ui.InputWidget.prototype.simulateLabelClick = function () {
 			this.$input[0].focus();
 		}
 	}
-};
-
-/**
- * Check if the widget is read-only.
- *
- * @return {boolean}
- */
-OO.ui.InputWidget.prototype.isReadOnly = function () {
-	return this.readOnly;
-};
-
-/**
- * Set the read-only state of the widget.
- *
- * This should probably change the widgets's appearance and prevent it from being used.
- *
- * @param {boolean} state Make input read-only
- * @chainable
- */
-OO.ui.InputWidget.prototype.setReadOnly = function ( state ) {
-	this.readOnly = !!state;
-	this.$input.prop( 'readOnly', this.readOnly );
-	return this;
 };
 
 /**
@@ -8863,6 +9228,160 @@ OO.ui.InputWidget.prototype.blur = function () {
 };
 
 /**
+ * A button that is an input widget. Intended to be used within a OO.ui.FormLayout.
+ *
+ * @class
+ * @extends OO.ui.InputWidget
+ * @mixins OO.ui.ButtonElement
+ * @mixins OO.ui.IconElement
+ * @mixins OO.ui.IndicatorElement
+ * @mixins OO.ui.LabelElement
+ * @mixins OO.ui.TitledElement
+ * @mixins OO.ui.FlaggedElement
+ *
+ * @constructor
+ * @param {Object} [config] Configuration options
+ * @cfg {string} [type='button'] HTML tag `type` attribute, may be 'button', 'submit' or 'reset'
+ * @cfg {boolean} [useInputTag=false] Whether to use `<input/>` rather than `<button/>`. Only useful
+ *  if you need IE 6 support in a form with multiple buttons. If you use this option, icons and
+ *  indicators will not be displayed, it won't be possible to have a non-plaintext label, and it
+ *  won't be possible to set a value (which will internally become identical to the label).
+ */
+OO.ui.ButtonInputWidget = function OoUiButtonInputWidget( config ) {
+	// Configuration initialization
+	config = $.extend( { type: 'button', useInputTag: false }, config );
+
+	// Properties (must be set before parent constructor, which calls #setValue)
+	this.useInputTag = config.useInputTag;
+
+	// Parent constructor
+	OO.ui.ButtonInputWidget.super.call( this, config );
+
+	// Mixin constructors
+	OO.ui.ButtonElement.call( this, $.extend( {}, config, { $button: this.$input } ) );
+	OO.ui.IconElement.call( this, config );
+	OO.ui.IndicatorElement.call( this, config );
+	OO.ui.LabelElement.call( this, config );
+	OO.ui.TitledElement.call( this, $.extend( {}, config, { $titled: this.$input } ) );
+	OO.ui.FlaggedElement.call( this, config );
+
+	// Events
+	this.$input.on( {
+		click: this.onClick.bind( this ),
+		keypress: this.onKeyPress.bind( this )
+	} );
+
+	// Initialization
+	if ( !config.useInputTag ) {
+		this.$input.append( this.$icon, this.$label, this.$indicator );
+	}
+	this.$element.addClass( 'oo-ui-buttonInputWidget' );
+};
+
+/* Setup */
+
+OO.inheritClass( OO.ui.ButtonInputWidget, OO.ui.InputWidget );
+OO.mixinClass( OO.ui.ButtonInputWidget, OO.ui.ButtonElement );
+OO.mixinClass( OO.ui.ButtonInputWidget, OO.ui.IconElement );
+OO.mixinClass( OO.ui.ButtonInputWidget, OO.ui.IndicatorElement );
+OO.mixinClass( OO.ui.ButtonInputWidget, OO.ui.LabelElement );
+OO.mixinClass( OO.ui.ButtonInputWidget, OO.ui.TitledElement );
+OO.mixinClass( OO.ui.ButtonInputWidget, OO.ui.FlaggedElement );
+
+/* Events */
+
+/**
+ * @event click
+ */
+
+/* Methods */
+
+/**
+ * Get input element.
+ *
+ * @private
+ * @param {Object} [config] Configuration options
+ * @return {jQuery} Input element
+ */
+OO.ui.ButtonInputWidget.prototype.getInputElement = function ( config ) {
+	// Configuration intialization
+	config = config || {};
+
+	var html = '<' + ( config.useInputTag ? 'input' : 'button' ) + ' type="' + config.type + '">';
+
+	return this.$( html );
+};
+
+/**
+ * Set label value.
+ *
+ * Overridden to support setting the 'value' of `<input/>` elements.
+ *
+ * @param {jQuery|string|Function|null} label Label nodes; text; a function that returns nodes or
+ *  text; or null for no label
+ * @chainable
+ */
+OO.ui.ButtonInputWidget.prototype.setLabel = function ( label ) {
+	OO.ui.LabelElement.prototype.setLabel.call( this, label );
+
+	if ( this.useInputTag ) {
+		if ( typeof label === 'function' ) {
+			label = OO.ui.resolveMsg( label );
+		}
+		if ( label instanceof jQuery ) {
+			label = label.text();
+		}
+		if ( !label ) {
+			label = '';
+		}
+		this.$input.val( label );
+	}
+
+	return this;
+};
+
+/**
+ * Set the value of the input.
+ *
+ * Overridden to disable for `<input/>` elements, which have value identical to the label.
+ *
+ * @param {string} value New value
+ * @chainable
+ */
+OO.ui.ButtonInputWidget.prototype.setValue = function ( value ) {
+	if ( !this.useInputTag ) {
+		OO.ui.ButtonInputWidget.super.prototype.setValue.call( this, value );
+	}
+	return this;
+};
+
+/**
+ * Handles mouse click events.
+ *
+ * @param {jQuery.Event} e Mouse click event
+ * @fires click
+ */
+OO.ui.ButtonInputWidget.prototype.onClick = function () {
+	if ( !this.isDisabled() ) {
+		this.emit( 'click' );
+	}
+	return false;
+};
+
+/**
+ * Handles keypress events.
+ *
+ * @param {jQuery.Event} e Keypress event
+ * @fires click
+ */
+OO.ui.ButtonInputWidget.prototype.onKeyPress = function ( e ) {
+	if ( !this.isDisabled() && ( e.which === OO.ui.Keys.SPACE || e.which === OO.ui.Keys.ENTER ) ) {
+		this.emit( 'click' );
+	}
+	return false;
+};
+
+/**
  * Checkbox input widget.
  *
  * @class
@@ -8883,13 +9402,12 @@ OO.ui.CheckboxInputWidget = function OoUiCheckboxInputWidget( config ) {
 
 OO.inheritClass( OO.ui.CheckboxInputWidget, OO.ui.InputWidget );
 
-/* Events */
-
 /* Methods */
 
 /**
  * Get input element.
  *
+ * @private
  * @return {jQuery} Input element
  */
 OO.ui.CheckboxInputWidget.prototype.getInputElement = function () {
@@ -8906,7 +9424,9 @@ OO.ui.CheckboxInputWidget.prototype.getValue = function () {
 };
 
 /**
- * Set value
+ * Set checked state of the checkbox
+ *
+ * @param {boolean} value New value
  */
 OO.ui.CheckboxInputWidget.prototype.setValue = function ( value ) {
 	value = !!value;
@@ -8941,14 +9461,18 @@ OO.ui.CheckboxInputWidget.prototype.onEdit = function () {
  *
  * @constructor
  * @param {Object} [config] Configuration options
+ * @cfg {string} [type='text'] HTML tag `type` attribute
  * @cfg {string} [placeholder] Placeholder text
+ * @cfg {boolean} [readOnly=false] Prevent changes
  * @cfg {boolean} [multiline=false] Allow multiple lines of text
  * @cfg {boolean} [autosize=false] Automatically resize to fit content
  * @cfg {boolean} [maxRows=10] Maximum number of rows to make visible when autosizing
+ * @cfg {RegExp|string} [validate] Regular expression (or symbolic name referencing
+ *  one, see #static-validationPatterns)
  */
 OO.ui.TextInputWidget = function OoUiTextInputWidget( config ) {
 	// Configuration initialization
-	config = config || {};
+	config = $.extend( { readOnly: false }, config );
 
 	// Parent constructor
 	OO.ui.TextInputWidget.super.call( this, config );
@@ -8959,20 +9483,28 @@ OO.ui.TextInputWidget = function OoUiTextInputWidget( config ) {
 	OO.ui.PendingElement.call( this, config );
 
 	// Properties
+	this.readOnly = false;
 	this.multiline = !!config.multiline;
 	this.autosize = !!config.autosize;
 	this.maxRows = config.maxRows !== undefined ? config.maxRows : 10;
+	this.validate = null;
+
+	this.setValidation( config.validate );
 
 	// Events
-	this.$input.on( 'keypress', OO.ui.bind( this.onKeyPress, this ) );
-	this.$element.on( 'DOMNodeInsertedIntoDocument', OO.ui.bind( this.onElementAttach, this ) );
-	this.$icon.on( 'mousedown', OO.ui.bind( this.onIconMouseDown, this ) );
-	this.$indicator.on( 'mousedown', OO.ui.bind( this.onIndicatorMouseDown, this ) );
+	this.$input.on( {
+		keypress: this.onKeyPress.bind( this ),
+		blur: this.setValidityFlag.bind( this )
+	} );
+	this.$element.on( 'DOMNodeInsertedIntoDocument', this.onElementAttach.bind( this ) );
+	this.$icon.on( 'mousedown', this.onIconMouseDown.bind( this ) );
+	this.$indicator.on( 'mousedown', this.onIndicatorMouseDown.bind( this ) );
 
 	// Initialization
 	this.$element
 		.addClass( 'oo-ui-textInputWidget' )
 		.append( this.$icon, this.$indicator );
+	this.setReadOnly( config.readOnly );
 	if ( config.placeholder ) {
 		this.$input.attr( 'placeholder', config.placeholder );
 	}
@@ -8985,6 +9517,13 @@ OO.inheritClass( OO.ui.TextInputWidget, OO.ui.InputWidget );
 OO.mixinClass( OO.ui.TextInputWidget, OO.ui.IconElement );
 OO.mixinClass( OO.ui.TextInputWidget, OO.ui.IndicatorElement );
 OO.mixinClass( OO.ui.TextInputWidget, OO.ui.PendingElement );
+
+/* Static properties */
+
+OO.ui.TextInputWidget.static.validationPatterns = {
+	'non-empty': /.+/,
+	integer: /^\d+$/
+};
 
 /* Events */
 
@@ -9076,7 +9615,31 @@ OO.ui.TextInputWidget.prototype.setValue = function ( value ) {
 	// Parent method
 	OO.ui.TextInputWidget.super.prototype.setValue.call( this, value );
 
+	this.setValidityFlag();
 	this.adjustSize();
+	return this;
+};
+
+/**
+ * Check if the widget is read-only.
+ *
+ * @return {boolean}
+ */
+OO.ui.TextInputWidget.prototype.isReadOnly = function () {
+	return this.readOnly;
+};
+
+/**
+ * Set the read-only state of the widget.
+ *
+ * This should probably change the widgets's appearance and prevent it from being used.
+ *
+ * @param {boolean} state Make input read-only
+ * @chainable
+ */
+OO.ui.TextInputWidget.prototype.setReadOnly = function ( state ) {
+	this.readOnly = !!state;
+	this.$input.prop( 'readOnly', this.readOnly );
 	return this;
 };
 
@@ -9088,31 +9651,34 @@ OO.ui.TextInputWidget.prototype.setValue = function ( value ) {
  * @chainable
  */
 OO.ui.TextInputWidget.prototype.adjustSize = function () {
-	var $clone, scrollHeight, innerHeight, outerHeight, maxInnerHeight, idealHeight;
+	var $clone, scrollHeight, innerHeight, outerHeight, maxInnerHeight, measurementError, idealHeight;
 
 	if ( this.multiline && this.autosize ) {
 		$clone = this.$input.clone()
 			.val( this.$input.val() )
+			// Set inline height property to 0 to measure scroll height
 			.css( { height: 0 } )
 			.insertAfter( this.$input );
-		// Set inline height property to 0 to measure scroll height
 		scrollHeight = $clone[0].scrollHeight;
 		// Remove inline height property to measure natural heights
 		$clone.css( 'height', '' );
 		innerHeight = $clone.innerHeight();
 		outerHeight = $clone.outerHeight();
 		// Measure max rows height
-		$clone.attr( 'rows', this.maxRows ).css( 'height', 'auto' );
+		$clone.attr( 'rows', this.maxRows ).css( 'height', 'auto' ).val( '' );
 		maxInnerHeight = $clone.innerHeight();
-		$clone.removeAttr( 'rows' ).css( 'height', '' );
+		// Difference between reported innerHeight and scrollHeight with no scrollbars present
+		// Equals 1 on Blink-based browsers and 0 everywhere else
+		measurementError = maxInnerHeight - $clone[0].scrollHeight;
 		$clone.remove();
-		idealHeight = Math.min( maxInnerHeight, scrollHeight );
+		idealHeight = Math.min( maxInnerHeight, scrollHeight + measurementError );
 		// Only apply inline height when expansion beyond natural height is needed
-		this.$input.css(
-			'height',
+		if ( idealHeight > innerHeight ) {
 			// Use the difference between the inner and outer height as a buffer
-			idealHeight > outerHeight ? idealHeight + ( outerHeight - innerHeight ) : ''
-		);
+			this.$input.css( 'height', idealHeight + ( outerHeight - innerHeight ) );
+		} else {
+			this.$input.css( 'height', '' );
+		}
 	}
 	return this;
 };
@@ -9120,14 +9686,18 @@ OO.ui.TextInputWidget.prototype.adjustSize = function () {
 /**
  * Get input element.
  *
+ * @private
  * @param {Object} [config] Configuration options
  * @return {jQuery} Input element
  */
 OO.ui.TextInputWidget.prototype.getInputElement = function ( config ) {
-	return config.multiline ? this.$( '<textarea>' ) : this.$( '<input type="text" />' );
-};
+	// Configuration initialization
+	config = config || {};
 
-/* Methods */
+	var type = config.type || 'text';
+
+	return config.multiline ? this.$( '<textarea>' ) : this.$( '<input type="' + type + '" />' );
+};
 
 /**
  * Check if input supports multiple lines.
@@ -9158,6 +9728,39 @@ OO.ui.TextInputWidget.prototype.select = function () {
 };
 
 /**
+ * Sets the validation pattern to use.
+ * @param {RegExp|string|null} validate Regular expression (or symbolic name referencing
+ *  one, see #static-validationPatterns)
+ */
+OO.ui.TextInputWidget.prototype.setValidation = function ( validate ) {
+	if ( validate instanceof RegExp ) {
+		this.validate = validate;
+	} else {
+		this.validate = this.constructor.static.validationPatterns[validate] || /.*/;
+	}
+};
+
+/**
+ * Sets the 'invalid' flag appropriately.
+ */
+OO.ui.TextInputWidget.prototype.setValidityFlag = function () {
+	var widget = this;
+	this.isValid().done( function ( valid ) {
+		widget.setFlags( { invalid: !valid } );
+	} );
+};
+
+/**
+ * Returns whether or not the current value is considered valid, according to the
+ * supplied validation pattern.
+ *
+ * @return {jQuery.Deferred}
+ */
+OO.ui.TextInputWidget.prototype.isValid = function () {
+	return $.Deferred().resolve( !!this.getValue().match( this.validate ) ).promise();
+};
+
+/**
  * Text input with a menu of optional values.
  *
  * @class
@@ -9167,6 +9770,7 @@ OO.ui.TextInputWidget.prototype.select = function () {
  * @param {Object} [config] Configuration options
  * @cfg {Object} [menu] Configuration options to pass to menu widget
  * @cfg {Object} [input] Configuration options to pass to input widget
+ * @cfg {jQuery} [$overlay] Overlay layer; defaults to relative positioning
  */
 OO.ui.ComboBoxWidget = function OoUiComboBoxWidget( config ) {
 	// Configuration initialization
@@ -9176,12 +9780,18 @@ OO.ui.ComboBoxWidget = function OoUiComboBoxWidget( config ) {
 	OO.ui.ComboBoxWidget.super.call( this, config );
 
 	// Properties
+	this.$overlay = config.$overlay || this.$element;
 	this.input = new OO.ui.TextInputWidget( $.extend(
 		{ $: this.$, indicator: 'down', disabled: this.isDisabled() },
 		config.input
 	) );
-	this.menu = new OO.ui.MenuWidget( $.extend(
-		{ $: this.$, widget: this, input: this.input, disabled: this.isDisabled() },
+	this.menu = new OO.ui.TextInputMenuWidget( this.input, $.extend(
+		{
+			$: OO.ui.Element.getJQuery( this.$overlay ),
+			widget: this,
+			input: this.input,
+			disabled: this.isDisabled()
+		},
 		config.menu
 	) );
 
@@ -9198,10 +9808,8 @@ OO.ui.ComboBoxWidget = function OoUiComboBoxWidget( config ) {
 	} );
 
 	// Initialization
-	this.$element.addClass( 'oo-ui-comboBoxWidget' ).append(
-		this.input.$element,
-		this.menu.$element
-	);
+	this.$element.addClass( 'oo-ui-comboBoxWidget' ).append( this.input.$element );
+	this.$overlay.append( this.menu.$element );
 	this.onMenuItemsChange();
 };
 
@@ -9259,6 +9867,8 @@ OO.ui.ComboBoxWidget.prototype.onMenuChoose = function ( item ) {
  * Handle menu item change events.
  */
 OO.ui.ComboBoxWidget.prototype.onMenuItemsChange = function () {
+	var match = this.menu.getItemFromData( this.input.getValue() );
+	this.menu.selectItem( match );
 	this.$element.toggleClass( 'oo-ui-comboBoxWidget-empty', this.menu.isEmpty() );
 };
 
@@ -9290,7 +9900,7 @@ OO.ui.ComboBoxWidget.prototype.setDisabled = function ( disabled ) {
  * @param {Object} [config] Configuration options
  */
 OO.ui.LabelWidget = function OoUiLabelWidget( config ) {
-	// Config intialization
+	// Configuration initialization
 	config = config || {};
 
 	// Parent constructor
@@ -9298,13 +9908,14 @@ OO.ui.LabelWidget = function OoUiLabelWidget( config ) {
 
 	// Mixin constructors
 	OO.ui.LabelElement.call( this, $.extend( {}, config, { $label: this.$element } ) );
+	OO.ui.TitledElement.call( this, config );
 
 	// Properties
 	this.input = config.input;
 
 	// Events
 	if ( this.input instanceof OO.ui.InputWidget ) {
-		this.$element.on( 'click', OO.ui.bind( this.onClick, this ) );
+		this.$element.on( 'click', this.onClick.bind( this ) );
 	}
 
 	// Initialization
@@ -9315,6 +9926,7 @@ OO.ui.LabelWidget = function OoUiLabelWidget( config ) {
 
 OO.inheritClass( OO.ui.LabelWidget, OO.ui.Widget );
 OO.mixinClass( OO.ui.LabelWidget, OO.ui.LabelElement );
+OO.mixinClass( OO.ui.LabelWidget, OO.ui.TitledElement );
 
 /* Static Properties */
 
@@ -9343,10 +9955,9 @@ OO.ui.LabelWidget.prototype.onClick = function () {
  * @constructor
  * @param {Mixed} data Option data
  * @param {Object} [config] Configuration options
- * @cfg {string} [rel] Value for `rel` attribute in DOM, allowing per-option styling
  */
 OO.ui.OptionWidget = function OoUiOptionWidget( data, config ) {
-	// Config intialization
+	// Configuration initialization
 	config = config || {};
 
 	// Parent constructor
@@ -9366,13 +9977,9 @@ OO.ui.OptionWidget = function OoUiOptionWidget( data, config ) {
 	// Initialization
 	this.$element
 		.data( 'oo-ui-optionWidget', this )
-		.attr( 'rel', config.rel )
 		.attr( 'role', 'option' )
 		.addClass( 'oo-ui-optionWidget' )
 		.append( this.$label );
-	this.$element
-		.prepend( this.$icon )
-		.append( this.$indicator );
 };
 
 /* Setup */
@@ -9461,6 +10068,7 @@ OO.ui.OptionWidget.prototype.setSelected = function ( state ) {
 		if ( state && this.constructor.static.scrollIntoViewOnSelect ) {
 			this.scrollElementIntoView();
 		}
+		this.updateThemeClasses();
 	}
 	return this;
 };
@@ -9475,6 +10083,7 @@ OO.ui.OptionWidget.prototype.setHighlighted = function ( state ) {
 	if ( this.constructor.static.highlightable ) {
 		this.highlighted = !!state;
 		this.$element.toggleClass( 'oo-ui-optionWidget-highlighted', state );
+		this.updateThemeClasses();
 	}
 	return this;
 };
@@ -9489,6 +10098,7 @@ OO.ui.OptionWidget.prototype.setPressed = function ( state ) {
 	if ( this.constructor.static.pressable ) {
 		this.pressed = !!state;
 		this.$element.toggleClass( 'oo-ui-optionWidget-pressed', state );
+		this.updateThemeClasses();
 	}
 	return this;
 };
@@ -9686,7 +10296,7 @@ OO.ui.MenuSectionItemWidget.static.highlightable = false;
  * @cfg {boolean} [movable] Allow modification from outline controls
  */
 OO.ui.OutlineItemWidget = function OoUiOutlineItemWidget( data, config ) {
-	// Config intialization
+	// Configuration initialization
 	config = config || {};
 
 	// Parent constructor
@@ -9759,6 +10369,7 @@ OO.ui.OutlineItemWidget.prototype.getLevel = function () {
  */
 OO.ui.OutlineItemWidget.prototype.setMovable = function ( movable ) {
 	this.movable = !!movable;
+	this.updateThemeClasses();
 	return this;
 };
 
@@ -9772,6 +10383,7 @@ OO.ui.OutlineItemWidget.prototype.setMovable = function ( movable ) {
  */
 OO.ui.OutlineItemWidget.prototype.setRemovable = function ( removable ) {
 	this.removable = !!removable;
+	this.updateThemeClasses();
 	return this;
 };
 
@@ -9794,6 +10406,7 @@ OO.ui.OutlineItemWidget.prototype.setLevel = function ( level ) {
 			this.$element.removeClass( levelClass + i );
 		}
 	}
+	this.updateThemeClasses();
 
 	return this;
 };
@@ -9812,6 +10425,7 @@ OO.ui.OutlineItemWidget.prototype.setLevel = function ( level ) {
  * @cfg {boolean} [anchor=true] Show anchor pointing to origin of popup
  * @cfg {string} [align='center'] Alignment of popup to origin
  * @cfg {jQuery} [$container] Container to prevent popup from rendering outside of
+ * @cfg {number} [containerPadding=10] How much padding to keep between popup and container
  * @cfg {jQuery} [$content] Content to append to the popup's body
  * @cfg {boolean} [autoClose=false] Popup auto-closes when it loses focus
  * @cfg {jQuery} [$autoCloseIgnore] Elements to not auto close when clicked
@@ -9819,7 +10433,7 @@ OO.ui.OutlineItemWidget.prototype.setLevel = function ( level ) {
  * @cfg {boolean} [padded] Add padding to the body
  */
 OO.ui.PopupWidget = function OoUiPopupWidget( config ) {
-	// Config intialization
+	// Configuration initialization
 	config = config || {};
 
 	// Parent constructor
@@ -9835,7 +10449,9 @@ OO.ui.PopupWidget = function OoUiPopupWidget( config ) {
 	this.$head = this.$( '<div>' );
 	this.$body = this.$( '<div>' );
 	this.$anchor = this.$( '<div>' );
-	this.$container = config.$container; // If undefined, will be computed lazily in updateDimensions()
+	// If undefined, will be computed lazily in updateDimensions()
+	this.$container = config.$container;
+	this.containerPadding = config.containerPadding !== undefined ? config.containerPadding : 10;
 	this.autoClose = !!config.autoClose;
 	this.$autoCloseIgnore = config.$autoCloseIgnore;
 	this.transitionTimeout = null;
@@ -9844,7 +10460,7 @@ OO.ui.PopupWidget = function OoUiPopupWidget( config ) {
 	this.height = config.height !== undefined ? config.height : null;
 	this.align = config.align || 'center';
 	this.closeButton = new OO.ui.ButtonWidget( { $: this.$, framed: false, icon: 'close' } );
-	this.onMouseDownHandler = OO.ui.bind( this.onMouseDown, this );
+	this.onMouseDownHandler = this.onMouseDown.bind( this );
 
 	// Events
 	this.closeButton.connect( this, { click: 'onCloseButtonClick' } );
@@ -9881,16 +10497,6 @@ OO.ui.PopupWidget = function OoUiPopupWidget( config ) {
 OO.inheritClass( OO.ui.PopupWidget, OO.ui.Widget );
 OO.mixinClass( OO.ui.PopupWidget, OO.ui.LabelElement );
 OO.mixinClass( OO.ui.PopupWidget, OO.ui.ClippableElement );
-
-/* Events */
-
-/**
- * @event hide
- */
-
-/**
- * @event show
- */
 
 /* Methods */
 
@@ -10019,8 +10625,7 @@ OO.ui.PopupWidget.prototype.setSize = function ( width, height, transition ) {
 OO.ui.PopupWidget.prototype.updateDimensions = function ( transition ) {
 	var popupOffset, originOffset, containerLeft, containerWidth, containerRight,
 		popupLeft, popupRight, overlapLeft, overlapRight, anchorWidth,
-		widget = this,
-		padding = 10;
+		widget = this;
 
 	if ( !this.$container ) {
 		// Lazy-initialize $container if not specified in constructor
@@ -10042,8 +10647,8 @@ OO.ui.PopupWidget.prototype.updateDimensions = function ( transition ) {
 	containerLeft = Math.round( this.$container.offset().left );
 	containerWidth = this.$container.innerWidth();
 	containerRight = containerLeft + containerWidth;
-	popupLeft = popupOffset - padding;
-	popupRight = popupOffset + padding + this.width + padding;
+	popupLeft = popupOffset - this.containerPadding;
+	popupRight = popupOffset + this.containerPadding + this.width + this.containerPadding;
 	overlapLeft = ( originOffset + popupLeft ) - containerLeft;
 	overlapRight = containerRight - ( originOffset + popupRight );
 
@@ -10055,11 +10660,13 @@ OO.ui.PopupWidget.prototype.updateDimensions = function ( transition ) {
 	}
 
 	// Adjust offset to avoid anchor being rendered too close to the edge
-	anchorWidth = this.$anchor.width();
-	if ( this.align === 'right' ) {
-		popupOffset += anchorWidth;
-	} else if ( this.align === 'left' ) {
-		popupOffset -= anchorWidth;
+	// $anchor.width() doesn't work with the pure CSS anchor (returns 0)
+	// TODO: Find a measurement that works for CSS anchors and image anchors
+	anchorWidth = this.$anchor[0].scrollWidth * 2;
+	if ( popupOffset + this.width < anchorWidth ) {
+		popupOffset = anchorWidth - this.width;
+	} else if ( -popupOffset < anchorWidth ) {
+		popupOffset = -anchorWidth;
 	}
 
 	// Prevent transition from being interrupted
@@ -10070,7 +10677,7 @@ OO.ui.PopupWidget.prototype.updateDimensions = function ( transition ) {
 	}
 
 	// Position body relative to anchor
-	this.$popup.css( 'left', popupOffset );
+	this.$popup.css( 'margin-left', popupOffset );
 
 	if ( transition ) {
 		// Prevent transitioning after transition is complete
@@ -10082,7 +10689,81 @@ OO.ui.PopupWidget.prototype.updateDimensions = function ( transition ) {
 		this.$element.removeClass( 'oo-ui-popupWidget-transitioning' );
 	}
 
+	// Reevaluate clipping state since we've relocated and resized the popup
+	this.clip();
+
 	return this;
+};
+
+/**
+ * Progress bar widget.
+ *
+ * @class
+ * @extends OO.ui.Widget
+ *
+ * @constructor
+ * @param {Object} [config] Configuration options
+ * @cfg {number|boolean} [progress=false] Initial progress percent or false for indeterminate
+ */
+OO.ui.ProgressBarWidget = function OoUiProgressBarWidget( config ) {
+	// Configuration initialization
+	config = config || {};
+
+	// Parent constructor
+	OO.ui.ProgressBarWidget.super.call( this, config );
+
+	// Properties
+	this.$bar = this.$( '<div>' );
+	this.progress = null;
+
+	// Initialization
+	this.setProgress( config.progress !== undefined ? config.progress : false );
+	this.$bar.addClass( 'oo-ui-progressBarWidget-bar');
+	this.$element
+		.attr( {
+			role: 'progressbar',
+			'aria-valuemin': 0,
+			'aria-valuemax': 100
+		} )
+		.addClass( 'oo-ui-progressBarWidget' )
+		.append( this.$bar );
+};
+
+/* Setup */
+
+OO.inheritClass( OO.ui.ProgressBarWidget, OO.ui.Widget );
+
+/* Static Properties */
+
+OO.ui.ProgressBarWidget.static.tagName = 'div';
+
+/* Methods */
+
+/**
+ * Get progress percent
+ *
+ * @return {number} Progress percent
+ */
+OO.ui.ProgressBarWidget.prototype.getProgress = function () {
+	return this.progress;
+};
+
+/**
+ * Set progress percent
+ *
+ * @param {number|boolean} progress Progress percent or false for indeterminate
+ */
+OO.ui.ProgressBarWidget.prototype.setProgress = function ( progress ) {
+	this.progress = progress;
+
+	if ( progress !== false ) {
+		this.$bar.css( 'width', this.progress + '%' );
+		this.$element.attr( 'aria-valuenow', this.progress );
+	} else {
+		this.$bar.css( 'width', '' );
+		this.$element.removeAttr( 'aria-valuenow' );
+	}
+	this.$element.toggleClass( 'oo-ui-progressBarWidget-indeterminate', !progress );
 };
 
 /**
@@ -10126,7 +10807,7 @@ OO.ui.SearchWidget = function OoUiSearchWidget( config ) {
 		highlight: 'onResultsHighlight',
 		select: 'onResultsSelect'
 	} );
-	this.query.$input.on( 'keydown', OO.ui.bind( this.onQueryKeydown, this ) );
+	this.query.$input.on( 'keydown', this.onQueryKeydown.bind( this ) );
 
 	// Initialization
 	this.$query
@@ -10243,7 +10924,7 @@ OO.ui.SearchWidget.prototype.getResults = function () {
 /**
  * Generic selection of options.
  *
- * Items can contain any rendering, and are uniquely identified by a has of thier data. Any widget
+ * Items can contain any rendering, and are uniquely identified by a hash of their data. Any widget
  * that provides options, from which the user must choose one, should be built on this class.
  *
  * Use together with OO.ui.OptionWidget.
@@ -10257,7 +10938,7 @@ OO.ui.SearchWidget.prototype.getResults = function () {
  * @cfg {OO.ui.OptionWidget[]} [items] Options to add
  */
 OO.ui.SelectWidget = function OoUiSelectWidget( config ) {
-	// Config intialization
+	// Configuration initialization
 	config = config || {};
 
 	// Parent constructor
@@ -10270,14 +10951,14 @@ OO.ui.SelectWidget = function OoUiSelectWidget( config ) {
 	this.pressed = false;
 	this.selecting = null;
 	this.hashes = {};
-	this.onMouseUpHandler = OO.ui.bind( this.onMouseUp, this );
-	this.onMouseMoveHandler = OO.ui.bind( this.onMouseMove, this );
+	this.onMouseUpHandler = this.onMouseUp.bind( this );
+	this.onMouseMoveHandler = this.onMouseMove.bind( this );
 
 	// Events
 	this.$element.on( {
-		mousedown: OO.ui.bind( this.onMouseDown, this ),
-		mouseover: OO.ui.bind( this.onMouseOver, this ),
-		mouseleave: OO.ui.bind( this.onMouseLeave, this )
+		mousedown: this.onMouseDown.bind( this ),
+		mouseover: this.onMouseOver.bind( this ),
+		mouseleave: this.onMouseLeave.bind( this )
 	} );
 
 	// Initialization
@@ -10500,7 +11181,7 @@ OO.ui.SelectWidget.prototype.getHighlightedItem = function () {
 OO.ui.SelectWidget.prototype.getItemFromData = function ( data ) {
 	var hash = OO.getHash( data );
 
-	if ( hash in this.hashes ) {
+	if ( Object.prototype.hasOwnProperty.call( this.hashes, hash ) ) {
 		return this.hashes[hash];
 	}
 
@@ -10622,7 +11303,7 @@ OO.ui.SelectWidget.prototype.chooseItem = function ( item ) {
  * Get an item relative to another one.
  *
  * @param {OO.ui.OptionWidget} item Item to start at
- * @param {number} direction Direction to move in
+ * @param {number} direction Direction to move in, -1 to look backward, 1 to move forward
  * @return {OO.ui.OptionWidget|null} Item at position, `null` if there are no items in the menu
  */
 OO.ui.SelectWidget.prototype.getRelativeSelectableItem = function ( item, direction ) {
@@ -10637,7 +11318,7 @@ OO.ui.SelectWidget.prototype.getRelativeSelectableItem = function ( item, direct
 			// Default to n-1 instead of -1, if nothing is selected let's start at the end
 			Math.min( index, len );
 
-	while ( true ) {
+	while ( len !== 0 ) {
 		i = ( i + inc + len ) % len;
 		item = this.items[i];
 		if ( item instanceof OO.ui.OptionWidget && item.isSelectable() ) {
@@ -10687,7 +11368,7 @@ OO.ui.SelectWidget.prototype.addItems = function ( items, index ) {
 	for ( i = 0, len = items.length; i < len; i++ ) {
 		item = items[i];
 		hash = OO.getHash( item.getData() );
-		if ( hash in this.hashes ) {
+		if ( Object.prototype.hasOwnProperty.call( this.hashes, hash ) ) {
 			// Remove item with same value
 			remove.push( this.hashes[hash] );
 		}
@@ -10721,7 +11402,7 @@ OO.ui.SelectWidget.prototype.removeItems = function ( items ) {
 	for ( i = 0, len = items.length; i < len; i++ ) {
 		item = items[i];
 		hash = OO.getHash( item.getData() );
-		if ( hash in this.hashes ) {
+		if ( Object.prototype.hasOwnProperty.call( this.hashes, hash ) ) {
 			// Remove existing item
 			delete this.hashes[hash];
 		}
@@ -10802,7 +11483,7 @@ OO.inheritClass( OO.ui.ButtonSelectWidget, OO.ui.SelectWidget );
  * @cfg {boolean} [autoHide=true] Hide the menu when the mouse is pressed outside the menu
  */
 OO.ui.MenuWidget = function OoUiMenuWidget( config ) {
-	// Config intialization
+	// Configuration initialization
 	config = config || {};
 
 	// Parent constructor
@@ -10820,8 +11501,8 @@ OO.ui.MenuWidget = function OoUiMenuWidget( config ) {
 	this.$widget = config.widget ? config.widget.$element : null;
 	this.$previousFocus = null;
 	this.isolated = !config.input;
-	this.onKeyDownHandler = OO.ui.bind( this.onKeyDown, this );
-	this.onDocumentMouseDownHandler = OO.ui.bind( this.onDocumentMouseDown, this );
+	this.onKeyDownHandler = this.onKeyDown.bind( this );
+	this.onDocumentMouseDownHandler = this.onDocumentMouseDown.bind( this );
 
 	// Initialization
 	this.$element
@@ -10843,7 +11524,10 @@ OO.mixinClass( OO.ui.MenuWidget, OO.ui.ClippableElement );
  * @param {jQuery.Event} e Key down event
  */
 OO.ui.MenuWidget.prototype.onDocumentMouseDown = function ( e ) {
-	if ( !$.contains( this.$element[0], e.target ) && ( !this.$widget || !$.contains( this.$widget[0], e.target ) ) ) {
+	if (
+		!OO.ui.contains( this.$element[0], e.target, true ) &&
+		( !this.$widget || !OO.ui.contains( this.$widget[0], e.target, true ) )
+	) {
 		this.toggle( false );
 	}
 };
@@ -11010,7 +11694,9 @@ OO.ui.MenuWidget.prototype.toggle = function ( visible ) {
 	visible = ( visible === undefined ? !this.visible : !!visible ) && !!this.items.length;
 
 	var i, len,
-		change = visible !== this.isVisible();
+		change = visible !== this.isVisible(),
+		elementDoc = this.getElementDocument(),
+		widgetDoc = this.$widget ? this.$widget[0].ownerDocument : null;
 
 	// Parent method
 	OO.ui.MenuWidget.super.prototype.toggle.call( this, visible );
@@ -11034,9 +11720,15 @@ OO.ui.MenuWidget.prototype.toggle = function ( visible ) {
 
 			// Auto-hide
 			if ( this.autoHide ) {
-				this.getElementDocument().addEventListener(
+				elementDoc.addEventListener(
 					'mousedown', this.onDocumentMouseDownHandler, true
 				);
+				// Support $widget being in a different document
+				if ( widgetDoc && widgetDoc !== elementDoc ) {
+					widgetDoc.addEventListener(
+						'mousedown', this.onDocumentMouseDownHandler, true
+					);
+				}
 			}
 		} else {
 			this.unbindKeyDownListener();
@@ -11044,9 +11736,15 @@ OO.ui.MenuWidget.prototype.toggle = function ( visible ) {
 				this.$previousFocus[0].focus();
 				this.$previousFocus = null;
 			}
-			this.getElementDocument().removeEventListener(
+			elementDoc.removeEventListener(
 				'mousedown', this.onDocumentMouseDownHandler, true
 			);
+			// Support $widget being in a different document
+			if ( widgetDoc && widgetDoc !== elementDoc ) {
+				widgetDoc.removeEventListener(
+					'mousedown', this.onDocumentMouseDownHandler, true
+				);
+			}
 			this.toggleClipping( false );
 		}
 	}
@@ -11058,7 +11756,7 @@ OO.ui.MenuWidget.prototype.toggle = function ( visible ) {
  * Menu for a text input widget.
  *
  * This menu is specially designed to be positioned beneath the text input widget. Even if the input
- * is in a different frame, the menu's position is automatically calulated and maintained when the
+ * is in a different frame, the menu's position is automatically calculated and maintained when the
  * menu is toggled or the window is resized.
  *
  * @class
@@ -11070,13 +11768,16 @@ OO.ui.MenuWidget.prototype.toggle = function ( visible ) {
  * @cfg {jQuery} [$container=input.$element] Element to render menu under
  */
 OO.ui.TextInputMenuWidget = function OoUiTextInputMenuWidget( input, config ) {
+	// Configuration intialization
+	config = config || {};
+
 	// Parent constructor
 	OO.ui.TextInputMenuWidget.super.call( this, config );
 
 	// Properties
 	this.input = input;
 	this.$container = config.$container || this.input.$element;
-	this.onWindowResizeHandler = OO.ui.bind( this.onWindowResize, this );
+	this.onWindowResizeHandler = this.onWindowResize.bind( this );
 
 	// Initialization
 	this.$element.addClass( 'oo-ui-textInputMenuWidget' );
@@ -11101,7 +11802,7 @@ OO.ui.TextInputMenuWidget.prototype.onWindowResize = function () {
  * @inheritdoc
  */
 OO.ui.TextInputMenuWidget.prototype.toggle = function ( visible ) {
-	visible = !!visible;
+	visible = visible === undefined ? !this.isVisible() : !!visible;
 
 	var change = visible !== this.isVisible();
 
@@ -11133,30 +11834,14 @@ OO.ui.TextInputMenuWidget.prototype.toggle = function ( visible ) {
  * @chainable
  */
 OO.ui.TextInputMenuWidget.prototype.position = function () {
-	var frameOffset,
-		$container = this.$container,
-		dimensions = $container.offset();
+	var $container = this.$container,
+		pos = OO.ui.Element.getRelativePosition( $container, this.$element.offsetParent() );
 
 	// Position under input
-	dimensions.top += $container.height();
+	pos.top += $container.height();
+	this.$element.css( pos );
 
-	// Compensate for frame position if in a differnt frame
-	if ( this.input.$.$iframe && this.input.$.context !== this.$element[0].ownerDocument ) {
-		frameOffset = OO.ui.Element.getRelativePosition(
-			this.input.$.$iframe, this.$element.offsetParent()
-		);
-		dimensions.left += frameOffset.left;
-		dimensions.top += frameOffset.top;
-	} else {
-		// Fix for RTL (for some reason, no need to fix if the frameoffset is set)
-		if ( this.$element.css( 'direction' ) === 'rtl' ) {
-			dimensions.right = this.$element.parent().position().left -
-				$container.width() - dimensions.left;
-			// Erase the value for 'left':
-			delete dimensions.left;
-		}
-	}
-	this.$element.css( dimensions );
+	// Set width
 	this.setIdealSize( $container.width() );
 	// We updated the position, so re-evaluate the clipping state
 	this.clip();
@@ -11176,7 +11861,7 @@ OO.ui.TextInputMenuWidget.prototype.position = function () {
  * @param {Object} [config] Configuration options
  */
 OO.ui.OutlineWidget = function OoUiOutlineWidget( config ) {
-	// Config intialization
+	// Configuration initialization
 	config = config || {};
 
 	// Parent constructor
@@ -11216,7 +11901,7 @@ OO.ui.ToggleSwitchWidget = function OoUiToggleSwitchWidget( config ) {
 	this.$grip = this.$( '<span>' );
 
 	// Events
-	this.$element.on( 'click', OO.ui.bind( this.onClick, this ) );
+	this.$element.on( 'click', this.onClick.bind( this ) );
 
 	// Initialization
 	this.$glow.addClass( 'oo-ui-toggleSwitchWidget-glow' );
