@@ -154,6 +154,18 @@ require_once "$IP/skins/Vector/Vector.php";
  */
 require_once "$IP/extensions/CoderDojoKata/CoderDojoKata.php";
 
+require_once "$IP/extensions/W4G/w4g_rb.php";
+$wgW4GRB_Path = "/extensions/W4G";
+$wgW4GRB_Settings['ajax-fresh-data']=true;
+$wgW4GRB_Settings['allow-unoptimized-queries']=true;
+$wgW4GRB_Settings['auto-include']=true;
+$wgW4GRB_Settings['fix-spaces']=true;
+$wgW4GRB_Settings['max-bars-per-page']=1;
+$wgW4GRB_Settings['max-items-per-list']=200;
+$wgW4GRB_Settings['default-items-per-list']=30;
+$wgW4GRB_Settings['max-lists-per-page']=5;
+$wgW4GRB_Settings['show-voter-names']=false;
+
 /**
  * CUSTOM SKINS
  */
