@@ -1,7 +1,7 @@
 #!/bin/bash
 
 GIT_HOME=~/git
-KATA_HOME=[set/path/to/root/folder/of/your/website]
+KATA_HOME="[set/path/to/root/folder/of/your/website]"
 
 WIKI_REL=REL1_24
 WIKI_BRANCH=$WIKI_REL
