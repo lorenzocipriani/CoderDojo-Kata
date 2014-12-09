@@ -165,6 +165,7 @@ $wgW4GRB_Settings['max-items-per-list']=200;
 $wgW4GRB_Settings['default-items-per-list']=30;
 $wgW4GRB_Settings['max-lists-per-page']=5;
 $wgW4GRB_Settings['show-voter-names']=false;
+$wgW4GRB_Settings['anonymous-voting-enabled'] = true;
 
 /**
  * CUSTOM SKINS
