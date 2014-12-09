@@ -1,8 +1,11 @@
 #!/bin/bash
 
 GIT_HOME=~/git
+KATA_HOME="[set/path/to/root/folder/of/your/website]"
+
 WIKI_REL=REL1_24
 WIKI_BRANCH=$WIKI_REL
+
 KATA_REL=master
 KATA_BRANCH=$KATA_REL
 
@@ -29,5 +32,7 @@ mv $GIT_HOME/CoderDojo-Kata-skins/CoderDojoKata/coderdojokata $GIT_HOME/CoderDoj
 cp -r $GIT_HOME/CoderDojo-Kata-skins/CoderDojoKata/CoderDojoKata $GIT_HOME/CoderDojo-Kata/skins
 cp -r $GIT_HOME/CoderDojo-Kata-extensions/CoderDojoKata $GIT_HOME/CoderDojo-Kata/extensions
 cp -r $GIT_HOME/CoderDojo-Kata-extensions/W4G $GIT_HOME/CoderDojo-Kata/extensions
+
+echo -e "Now you can sync (cp, rsync, ftp, git-ftp, etc.) your ${GIT_HOME}/CoderDojo-Kata folder on ${KATA_HOME} folder\n"
 
 #git push
