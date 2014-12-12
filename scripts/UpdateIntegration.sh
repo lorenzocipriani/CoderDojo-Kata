@@ -18,6 +18,8 @@ git pull --recurse-submodules --depth=1
 cd $GIT_HOME/CoderDojo-Kata/skins/Vector
 git pull --recurse-submodules --depth=1
 
+cd $GIT_HOME/CoderDojo-Kata/extensions/ParserFunctions
+git pull --recurse-submodules --depth=1
 cd $GIT_HOME/CoderDojo-Kata/extensions/Parsoid
 git pull --recurse-submodules --depth=1
 cd $GIT_HOME/CoderDojo-Kata/extensions/TemplateData
