@@ -131,6 +131,9 @@ $wgContentNamespaces[] = 3560;
 /**
  * MEDIAWIKI EXTENSIONS
  */
+require_once "$IP/extensions/ParserFunctions/ParserFunctions.php";
+$wgPFEnableStringFunctions = true;
+
 require_once "$IP/extensions/TemplateData/TemplateData.php";
 $wgTemplateDataUseGUI = true;
 
