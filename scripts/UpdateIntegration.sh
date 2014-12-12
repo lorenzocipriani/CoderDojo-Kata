@@ -33,8 +33,6 @@ git pull --depth=1
 cd $GIT_HOME/CoderDojo-Kata-extensions
 git pull --depth=1
 
-mv $GIT_HOME/CoderDojo-Kata-skins/CoderDojoKata/coderdojokata $GIT_HOME/CoderDojo-Kata-skins/CoderDojoKata/CoderDojoKata
-
 rm -rf $GIT_HOME/CoderDojo-Kata/skins/CoderDojoKata
 cp -r $GIT_HOME/CoderDojo-Kata-skins/CoderDojoKata/CoderDojoKata $GIT_HOME/CoderDojo-Kata/skins
 
