@@ -146,6 +146,29 @@ $wgVisualEditorParsoidPrefix = 'kata';
 //$wgSessionsInObjectCache = true;
 //$wgVisualEditorParsoidForwardCookies = true;
 
+require_once "$EXT/Babel/Babel.php";
+ 
+require_once "$EXT/cldr/cldr.php";
+ 
+require_once "$EXT/CleanChanges/CleanChanges.php";
+$wgCCTrailerFilter = true;
+$wgCCUserFilter = false;
+$wgDefaultUserOptions['usenewrc'] = 1;
+ 
+require_once "$EXT/LocalisationUpdate/LocalisationUpdate.php";
+$wgLocalisationUpdateDirectory = "$IP/cache";
+ 
+require_once "$EXT/Translate/Translate.php";
+$wgGroupPermissions['user']['translate'] = true;
+$wgGroupPermissions['user']['translate-messagereview'] = true;
+$wgGroupPermissions['user']['translate-groupreview'] = true;
+$wgGroupPermissions['user']['translate-import'] = true;
+$wgGroupPermissions['sysop']['pagetranslation'] = true;
+$wgGroupPermissions['sysop']['translate-manage'] = true;
+$wgTranslateDocumentationLanguageCode = 'qqq';
+$wgExtraLanguageNames['qqq'] = 'Message documentation'; # No linguistic content. Used for documenting messages
+
+require_once "$EXT/UniversalLanguageSelector/UniversalLanguageSelector.php";
 
 /**
  * MEDIAWIKI SKINS
