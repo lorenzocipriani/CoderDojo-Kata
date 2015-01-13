@@ -146,19 +146,19 @@ $wgVisualEditorParsoidPrefix = 'kata';
 //$wgSessionsInObjectCache = true;
 //$wgVisualEditorParsoidForwardCookies = true;
 
-require_once "$EXT/Babel/Babel.php";
+require_once "$IP/extensions/Babel/Babel.php";
  
-require_once "$EXT/cldr/cldr.php";
+require_once "$IP/extensions/cldr/cldr.php";
  
-require_once "$EXT/CleanChanges/CleanChanges.php";
+require_once "$IP/extensions/CleanChanges/CleanChanges.php";
 $wgCCTrailerFilter = true;
 $wgCCUserFilter = false;
 $wgDefaultUserOptions['usenewrc'] = 1;
  
-require_once "$EXT/LocalisationUpdate/LocalisationUpdate.php";
+require_once "$IP/extensions/LocalisationUpdate/LocalisationUpdate.php";
 $wgLocalisationUpdateDirectory = "$IP/cache";
  
-require_once "$EXT/Translate/Translate.php";
+require_once "$IP/extensions/Translate/Translate.php";
 $wgGroupPermissions['user']['translate'] = true;
 $wgGroupPermissions['user']['translate-messagereview'] = true;
 $wgGroupPermissions['user']['translate-groupreview'] = true;
@@ -168,7 +168,7 @@ $wgGroupPermissions['sysop']['translate-manage'] = true;
 $wgTranslateDocumentationLanguageCode = 'qqq';
 $wgExtraLanguageNames['qqq'] = 'Message documentation'; # No linguistic content. Used for documenting messages
 
-require_once "$EXT/UniversalLanguageSelector/UniversalLanguageSelector.php";
+require_once "$IP/extensions/UniversalLanguageSelector/UniversalLanguageSelector.php";
 
 /**
  * MEDIAWIKI SKINS
