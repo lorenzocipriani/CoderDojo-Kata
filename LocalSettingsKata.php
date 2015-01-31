@@ -170,6 +170,11 @@ $wgExtraLanguageNames['qqq'] = 'Message documentation'; # No linguistic content.
 
 require_once "$IP/extensions/UniversalLanguageSelector/UniversalLanguageSelector.php";
 
+require_once "$IP/extensions/Validator/Validator.php";
+require_once "$IP/extensions/SemanticMediaWiki/SemanticMediaWiki.php";
+enableSemantics( 'example.org' );
+
+
 /**
  * MEDIAWIKI SKINS
  */
