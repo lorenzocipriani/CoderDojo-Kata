@@ -9,6 +9,8 @@ WIKI_BRANCH=$WIKI_REL
 KATA_REL=master
 KATA_BRANCH=$KATA_REL
 
+WORKING_DIR=$(pwd)
+
 rm -rf $GIT_HOME/CoderDojo-Kata
 rm -rf $GIT_HOME/CoderDojo-Kata-skins
 rm -rf $GIT_HOME/CoderDojo-Kata-extensions
@@ -29,6 +31,10 @@ git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikim
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/LocalisationUpdate.git $GIT_HOME/CoderDojo-Kata/extensions/LocalisationUpdate
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/Translate.git $GIT_HOME/CoderDojo-Kata/extensions/Translate
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/UniversalLanguageSelector.git $GIT_HOME/CoderDojo-Kata/extensions/UniversalLanguageSelector
+git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/SemanticBundle.git $GIT_HOME/CoderDojo-Kata/extensions/SemanticBundle
+cd $GIT_HOME/CoderDojo-Kata/extensions/SemanticBundle
+make
+cd $WORKING_DIR
 
 git clone --depth=1 --branch $WIKI_REL https://github.com/lorenzocipriani/CoderDojo-Kata.git $GIT_HOME/CoderDojo-Kata/Kata
 
@@ -40,6 +46,7 @@ cp -r $GIT_HOME/CoderDojo-Kata-skins/CoderDojoKata/CoderDojoKata $GIT_HOME/Coder
 cp -r $GIT_HOME/CoderDojo-Kata-extensions/CoderDojoKata $GIT_HOME/CoderDojo-Kata/extensions
 cp -r $GIT_HOME/CoderDojo-Kata-extensions/W4G $GIT_HOME/CoderDojo-Kata/extensions
 
-echo -e "Now you can sync (cp, rsync, ftp, git-ftp, etc.) your ${GIT_HOME}/CoderDojo-Kata folder on ${KATA_HOME} folder\n"
+echo -e "Now you can sync (cp, rsync, ftp, git-ftp, etc.) your ${GIT_HOME}/CoderDojo-Kata folder on ${KATA_HOME} folder.\n"
+echo -e "E.g.:\nrsync -a ${GIT_HOME}/CoderDojo-Kata/* ${KATA_HOME}\n"
 
 #git push
