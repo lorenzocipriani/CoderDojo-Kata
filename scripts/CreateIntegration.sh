@@ -32,8 +32,10 @@ git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikim
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/Translate.git $GIT_HOME/CoderDojo-Kata/extensions/Translate
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/UniversalLanguageSelector.git $GIT_HOME/CoderDojo-Kata/extensions/UniversalLanguageSelector
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/SemanticBundle.git $GIT_HOME/CoderDojo-Kata/extensions/SemanticBundle
+
+echo -e "Building the SemanticBundle extension"
 cd $GIT_HOME/CoderDojo-Kata/extensions/SemanticBundle
-make
+awk '{ system("cd release && git clone https://"$$2"/"$$1".git && cd "$$1" && git checkout "$$3" && git submodule init && git submodule update && rm -r .* && cd ../..") }' < externals
 cd $WORKING_DIR
 
 git clone --depth=1 --branch $WIKI_REL https://github.com/lorenzocipriani/CoderDojo-Kata.git $GIT_HOME/CoderDojo-Kata/Kata
