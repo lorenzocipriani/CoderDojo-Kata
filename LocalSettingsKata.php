@@ -170,9 +170,28 @@ $wgExtraLanguageNames['qqq'] = 'Message documentation'; # No linguistic content.
 
 require_once "$IP/extensions/UniversalLanguageSelector/UniversalLanguageSelector.php";
 
-require_once "$IP/extensions/Validator/Validator.php";
-require_once "$IP/extensions/SemanticMediaWiki/SemanticMediaWiki.php";
+#require_once "$IP/extensions/Validator/Validator.php";
+#require_once "$IP/extensions/SemanticMediaWiki/SemanticMediaWiki.php";
 enableSemantics( 'example.org' );
+$wgIncludejQueryMigrate = true;
+#require_once "$IP/extensions/SemanticForms/SemanticForms.php";
+#require_once "$IP/extensions/SemanticFormsInputs/SemanticFormsInputs.php";
+#require_once "$IP/extensions/SemanticCompoundQueries/SemanticCompoundQueries.php";
+#require_once "$IP/extensions/SemanticDrilldown/SemanticDrilldown.php";
+#require_once "$IP/extensions/SemanticImageInput/SemanticImageInput.php";
+$wgUseInstantCommons  = true;
+#require_once "$IP/extensions/SemanticInternalObjects/SemanticInternalObjects.php";
+#require_once "$IP/extensions/DataTransfer/DataTransfer.php";
+#$wgGroupPermissions['user']['datatransferimport'] = true;
+#require_once "$IP/extensions/ExternalData/ExternalData.php";
+#require_once "$IP/extensions/SemanticSignup/SemanticSignup.php";
+#require_once "$IP/extensions/AdminLinks/AdminLinks.php";
+#$wgGroupPermissions['my-group']['adminlinks'] = true;
+#require_once "$IP/extensions/ApprovedRevs/ApprovedRevs.php";
+#require_once "$IP/extensions/HeaderTabs/HeaderTabs.php";
+#require_once "$IP/extensions/ReplaceText/ReplaceText.php";
+#require_once "$IP/extensions/Widgets/Widgets.php";
+
 
 
 /**
