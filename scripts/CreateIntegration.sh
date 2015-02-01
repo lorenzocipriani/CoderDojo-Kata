@@ -1,7 +1,8 @@
 #!/bin/bash
 
 GIT_HOME=~/git
-KATA_HOME="[set/path/to/root/folder/of/your/website]"
+KATA_HOME=[/set/path/to/root/folder/of/your/website]
+PHP_CLI=[/set/path/to/root/folder/of/your/php/cli]
 
 WIKI_REL=REL1_24
 WIKI_BRANCH=$WIKI_REL
@@ -16,6 +17,10 @@ rm -rf $GIT_HOME/CoderDojo-Kata-skins
 rm -rf $GIT_HOME/CoderDojo-Kata-extensions
 
 git clone --depth=1 --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/core.git $GIT_HOME/CoderDojo-Kata
+
+cd $GIT_HOME/CoderDojo-Kata
+$PHP_CLI -r "readfile('https://getcomposer.org/installer');" | $PHP_CLI
+cd $WORKING_DIR
 
 git clone --depth=1 --recurse-submodules https://gerrit.wikimedia.org/r/p/mediawiki/vendor.git $GIT_HOME/CoderDojo-Kata/vendor
 
@@ -32,42 +37,36 @@ git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikim
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/Translate.git $GIT_HOME/CoderDojo-Kata/extensions/Translate
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/UniversalLanguageSelector.git $GIT_HOME/CoderDojo-Kata/extensions/UniversalLanguageSelector
 
-git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/SemanticMediaWiki.git $GIT_HOME/CoderDojo-Kata/extensions/SemanticMediaWiki
-git clone --depth=1 --recurse-submodules --branch master https://github.com/DataValues/Interfaces.git $GIT_HOME/CoderDojo-Kata/extensions/Interfaces
-git clone --depth=1 --recurse-submodules --branch master https://github.com/DataValues/DataValues.git $GIT_HOME/CoderDojo-Kata/extensions/DataValues
-git clone --depth=1 --recurse-submodules --branch master https://github.com/DataValues/Common.git $GIT_HOME/CoderDojo-Kata/extensions/Common
-git clone --depth=1 --recurse-submodules --branch master https://github.com/DataValues/Validators.git $GIT_HOME/CoderDojo-Kata/extensions/Validators
-git clone --depth=1 --recurse-submodules --branch master https://github.com/DataValues/Time.git $GIT_HOME/CoderDojo-Kata/extensions/Time
-git clone --depth=1 --recurse-submodules --branch master https://github.com/DataValues/Geo.git $GIT_HOME/CoderDojo-Kata/extensions/Geo
-git clone --depth=1 --recurse-submodules --branch master https://github.com/JeroenDeDauw/ParamProcessor.git $GIT_HOME/CoderDojo-Kata/extensions/ParamProcessor
-git clone --depth=1 --recurse-submodules --branch master https://github.com/JeroenDeDauw/Validator.git $GIT_HOME/CoderDojo-Kata/extensions/Validator
-git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/SemanticExtraSpecialProperties.git $GIT_HOME/CoderDojo-Kata/extensions/SemanticExtraSpecialProperties
-git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/SemanticResultFormats.git $GIT_HOME/CoderDojo-Kata/extensions/SemanticResultFormats
+cd $GIT_HOME/CoderDojo-Kata
+echo -e "Composer: installing semantic-media-wiki"
+$PHP_CLI composer.phar require mediawiki/semantic-media-wiki "~2.1"
+echo -e "Composer: installing semantic-extra-special-properties"
+$PHP_CLI composer.phar require mediawiki/semantic-extra-special-properties:~1.2
+echo -e "Composer: installing semantic-result-formats"
+$PHP_CLI composer.phar require mediawiki/semantic-result-formats "1.9.*"
+echo -e "Composer: installing semantic-maps"
+$PHP_CLI composer.phar require mediawiki/semantic-maps "*"
+echo -e "Composer: installing semantic-watchlist"
+$PHP_CLI composer.phar require mediawiki/semantic-watchlist:~1.0
+cd $WORKING_DIR
+
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/SemanticForms.git $GIT_HOME/CoderDojo-Kata/extensions/SemanticForms
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/SemanticFormsInputs.git $GIT_HOME/CoderDojo-Kata/extensions/SemanticFormsInputs
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/SemanticCompoundQueries.git $GIT_HOME/CoderDojo-Kata/extensions/SemanticCompoundQueries
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/SemanticDrilldown.git $GIT_HOME/CoderDojo-Kata/extensions/SemanticDrilldown
-git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/SemanticMaps.git $GIT_HOME/CoderDojo-Kata/extensions/SemanticMaps
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/SemanticImageInput.git $GIT_HOME/CoderDojo-Kata/extensions/SemanticImageInput
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/SemanticInternalObjects.git $GIT_HOME/CoderDojo-Kata/extensions/SemanticInternalObjects
-git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/SemanticWatchlist.git $GIT_HOME/CoderDojo-Kata/extensions/SemanticWatchlist
+git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/SemanticSignup.git $GIT_HOME/CoderDojo-Kata/extensions/SemanticSignup
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/AdminLinks.git $GIT_HOME/CoderDojo-Kata/extensions/AdminLinks
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/ApprovedRevs.git $GIT_HOME/CoderDojo-Kata/extensions/ApprovedRevs
-git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/Arrays.git $GIT_HOME/CoderDojo-Kata/extensions/Arrays
+#git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/Arrays.git $GIT_HOME/CoderDojo-Kata/extensions/Arrays
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/DataTransfer.git $GIT_HOME/CoderDojo-Kata/extensions/DataTransfer
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/ExternalData.git $GIT_HOME/CoderDojo-Kata/extensions/ExternalData
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/HeaderTabs.git $GIT_HOME/CoderDojo-Kata/extensions/HeaderTabs
-git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/Maps.git $GIT_HOME/CoderDojo-Kata/extensions/Maps
-git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/PageSchemas.git $GIT_HOME/CoderDojo-Kata/extensions/PageSchemas
+#git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/Maps.git $GIT_HOME/CoderDojo-Kata/extensions/Maps
+#git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/PageSchemas.git $GIT_HOME/CoderDojo-Kata/extensions/PageSchemas
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/ReplaceText.git $GIT_HOME/CoderDojo-Kata/extensions/ReplaceText
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/Widgets.git $GIT_HOME/CoderDojo-Kata/extensions/Widgets
-
-#echo -e "Building the SemanticBundle extension"
-#cd $GIT_HOME/CoderDojo-Kata/extensions/SemanticBundle
-#rm -rf release
-#mkdir release
-#awk '{ system("cd release && git clone https://"$$2"/"$$1".git && cd "$$1" && git checkout "$$3" && git submodule init && git submodule update && rm -r .* && cd ../..") }' < externals
-#cd $WORKING_DIR
 
 git clone --depth=1 --branch $WIKI_REL https://github.com/lorenzocipriani/CoderDojo-Kata.git $GIT_HOME/CoderDojo-Kata/Kata
 
