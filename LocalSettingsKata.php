@@ -190,6 +190,7 @@ require_once "$IP/extensions/HeaderTabs/HeaderTabs.php";
 require_once "$IP/extensions/ReplaceText/ReplaceText.php";
 require_once "$IP/extensions/Widgets/Widgets.php";
 
+require_once "$IP/extensions/EmbedVideo/EmbedVideo.php";
 
 
 /**
