@@ -10,15 +10,18 @@ WIKI_BRANCH=$WIKI_REL
 KATA_REL=master
 KATA_BRANCH=$KATA_REL
 
-WORKING_DIR=$(pwd)
+WORKING_DIR=$PWD
 
-rm -rf $GIT_HOME/CoderDojo-Kata
-rm -rf $GIT_HOME/CoderDojo-Kata-skins
-rm -rf $GIT_HOME/CoderDojo-Kata-extensions
+if [-d "${GIT_HOME}/CoderDojo-Kata"]
+then
+    rm -rf $GIT_HOME/CoderDojo-Kata
+    rm -rf $GIT_HOME/CoderDojo-Kata-skins
+    rm -rf $GIT_HOME/CoderDojo-Kata-extensions
+fi
 
-git clone --depth=1 --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/core.git $GIT_HOME/CoderDojo-Kata
+git clone --depth=1 --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/core.git $GIT_HOME/CoderDojo-Kata/core
 
-cd $GIT_HOME/CoderDojo-Kata
+cd $GIT_HOME/CoderDojo-Kata/core
 $PHP_CLI -r "readfile('https://getcomposer.org/installer');" | $PHP_CLI
 cd $WORKING_DIR
 
@@ -37,18 +40,18 @@ git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikim
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/Translate.git $GIT_HOME/CoderDojo-Kata/extensions/Translate
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/UniversalLanguageSelector.git $GIT_HOME/CoderDojo-Kata/extensions/UniversalLanguageSelector
 
-cd $GIT_HOME/CoderDojo-Kata
-echo -e "Composer: installing semantic-media-wiki"
-$PHP_CLI composer.phar require mediawiki/semantic-media-wiki "~2.1"
-echo -e "Composer: installing semantic-extra-special-properties"
-$PHP_CLI composer.phar require mediawiki/semantic-extra-special-properties:~1.2
-echo -e "Composer: installing semantic-result-formats"
-$PHP_CLI composer.phar require mediawiki/semantic-result-formats "1.9.*"
-echo -e "Composer: installing semantic-maps"
-$PHP_CLI composer.phar require mediawiki/semantic-maps "*"
-echo -e "Composer: installing semantic-watchlist"
-$PHP_CLI composer.phar require mediawiki/semantic-watchlist:~1.0
-cd $WORKING_DIR
+#cd $GIT_HOME/CoderDojo-Kata
+#echo -e "Composer: installing semantic-media-wiki"
+#$PHP_CLI composer.phar require mediawiki/semantic-media-wiki "~2.1"
+#echo -e "Composer: installing semantic-extra-special-properties"
+#$PHP_CLI composer.phar require mediawiki/semantic-extra-special-properties:~1.2
+#echo -e "Composer: installing semantic-result-formats"
+#$PHP_CLI composer.phar require mediawiki/semantic-result-formats "1.9.*"
+#echo -e "Composer: installing semantic-maps"
+#$PHP_CLI composer.phar require mediawiki/semantic-maps "*"
+#echo -e "Composer: installing semantic-watchlist"
+#$PHP_CLI composer.phar require mediawiki/semantic-watchlist:~1.0
+#cd $WORKING_DIR
 
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/SemanticForms.git $GIT_HOME/CoderDojo-Kata/extensions/SemanticForms
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/SemanticFormsInputs.git $GIT_HOME/CoderDojo-Kata/extensions/SemanticFormsInputs
@@ -72,11 +75,11 @@ git clone --depth=1 --recurse-submodules --branch master https://github.com/Alex
 
 git clone --depth=1 --branch $WIKI_REL https://github.com/lorenzocipriani/CoderDojo-Kata.git $GIT_HOME/CoderDojo-Kata/Kata
 
-git clone --depth=1 --branch $KATA_BRANCH https://bitbucket.org/lorenzocipriani/coderdojokata_skin.git $GIT_HOME/CoderDojo-Kata-skins/CoderDojoKata
-git clone --depth=1 --branch $KATA_BRANCH https://bitbucket.org/lorenzocipriani/coderdojokata_extensions.git $GIT_HOME/CoderDojo-Kata-extensions
+git clone --depth=1 --branch $KATA_BRANCH https://bitbucket.org/lorenzocipriani/coderdojokata_skin.git $GIT_HOME/CoderDojo-Kata/skins/CoderDojoKata
+git clone --depth=1 --branch $KATA_BRANCH https://bitbucket.org/lorenzocipriani/coderdojokata_extensions.git $GIT_HOME/CoderDojo-Kata/extensions/CoderDojoKata
 
-mv $GIT_HOME/CoderDojo-Kata-skins/CoderDojoKata/coderdojokata $GIT_HOME/CoderDojo-Kata-skins/CoderDojoKata/CoderDojoKata
-cp -r $GIT_HOME/CoderDojo-Kata-skins/CoderDojoKata/CoderDojoKata $GIT_HOME/CoderDojo-Kata/skins
+mv $GIT_HOME/CoderDojo-Kata/skins/CoderDojoKata/coderdojokata $GIT_HOME/CoderDojo-Kata/skins/CoderDojoKata/CoderDojoKata
+cp -r $GIT_HOME/CoderDojo-Kata/skins/CoderDojoKata/CoderDojoKata $GIT_HOME/CoderDojo-Kata/skins
 cp -r $GIT_HOME/CoderDojo-Kata-extensions/CoderDojoKata $GIT_HOME/CoderDojo-Kata/extensions
 cp -r $GIT_HOME/CoderDojo-Kata-extensions/W4G $GIT_HOME/CoderDojo-Kata/extensions
 
