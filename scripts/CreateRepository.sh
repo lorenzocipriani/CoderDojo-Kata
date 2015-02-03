@@ -12,7 +12,7 @@ KATA_BRANCH=$KATA_REL
 
 WORKING_DIR=$PWD
 
-if [-d "${GIT_HOME}/CoderDojo-Kata"]
+if [ -d "${GIT_HOME}/CoderDojo-Kata" ]
 then
     rm -rf $GIT_HOME/CoderDojo-Kata
 fi
@@ -59,12 +59,12 @@ git clone --depth=1 --branch $WIKI_REL https://github.com/lorenzocipriani/CoderD
 git clone --depth=1 --branch $KATA_BRANCH https://bitbucket.org/lorenzocipriani/coderdojokata_skin.git $GIT_HOME/CoderDojo-Kata/kata-skins
 git clone --depth=1 --branch $KATA_BRANCH https://bitbucket.org/lorenzocipriani/coderdojokata_extensions.git $GIT_HOME/CoderDojo-Kata/kata-extensions
 
-if [-d "$GIT_HOME/CoderDojo-Kata/kata-skins/coderdojokata"]
+if [ -d "$GIT_HOME/CoderDojo-Kata/kata-skins/coderdojokata" ]
 then
     mv $GIT_HOME/CoderDojo-Kata/kata-skins/coderdojokata $GIT_HOME/CoderDojo-Kata/kata-skins/CoderDojoKata
 fi
 
-if [ ! -d "$GIT_HOME/CoderDojo-Kata/composer"]
+if [ ! -d "$GIT_HOME/CoderDojo-Kata/composer" ]
 then
     mkdir $GIT_HOME/CoderDojo-Kata/composer
 fi
