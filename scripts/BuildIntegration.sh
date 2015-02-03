@@ -7,12 +7,12 @@ PHP_CLI=[/set/path/to/root/folder/of/your/php/cli]
 
 WORKING_DIR=$PWD
 
-if [ ! -d "${GIT_HOME}/CoderDojo-Kata"]
+if [ ! -d "${GIT_HOME}/CoderDojo-Kata" ]
 then
     exit 1
 fi
 
-if [ ! -d "${KATA_BUILD}"]
+if [ ! -d "${KATA_BUILD}" ]
 then
     mkdir $KATA_BUILD
 fi
