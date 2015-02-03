@@ -12,11 +12,10 @@ then
     exit 1
 fi
 
-if [ ! -d "${GIT_HOME}/CoderDojo-Kata-build"]
+if [ ! -d "${KATA_BUILD}"]
 then
-    mkdir $GIT_HOME/CoderDojo-Kata-build
+    mkdir $KATA_BUILD
 fi
-
 
 rsync -a --exclude '.git' --exclude '.git*' --exclude '.js*' --exclude '.travis*' ${GIT_HOME}/CoderDojo-Kata/core/* ${KATA_BUILD}/
 rsync -a --exclude '.git' --exclude '.git*' --exclude '.js*' --exclude '.travis*' ${GIT_HOME}/CoderDojo-Kata/vendor ${KATA_BUILD}/
