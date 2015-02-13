@@ -193,6 +193,7 @@ require_once "$IP/extensions/Widgets/Widgets.php";
 
 require_once "$IP/extensions/EmbedVideo/EmbedVideo.php";
 
+require_once "$IP/extensions/Mpdf/Mpdf.php";
 
 /**
  * MEDIAWIKI SKINS
