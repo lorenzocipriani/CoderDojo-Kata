@@ -52,6 +52,8 @@ git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikim
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/ReplaceText.git $GIT_HOME/CoderDojo-Kata/extensions/ReplaceText
 git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/p/mediawiki/extensions/Widgets.git $GIT_HOME/CoderDojo-Kata/extensions/Widgets
 
+git clone --depth=1 --recurse-submodules --branch $WIKI_REL https://gerrit.wikimedia.org/r/mediawiki/extensions/Mpdf $GIT_HOME/CoderDojo-Kata/extensions/Mpdf
+
 git clone --depth=1 --recurse-submodules --branch master https://github.com/Alexia/mediawiki-embedvideo.git $GIT_HOME/CoderDojo-Kata/extensions/EmbedVideo
 
 git clone --depth=1 --branch $WIKI_REL https://github.com/lorenzocipriani/CoderDojo-Kata.git $GIT_HOME/CoderDojo-Kata/Kata
