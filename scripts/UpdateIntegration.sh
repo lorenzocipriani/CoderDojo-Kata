@@ -7,7 +7,7 @@ source ./build.properties
 
 echo -e "\nUpdating $GIT_HOME/CoderDojo-Kata/core\n"
 cd $GIT_HOME/CoderDojo-Kata/core
-git $SSL pull --depth=1
+git $SSL pull --depth=1 
 
 echo -e "\nUpdating $GIT_HOME/CoderDojo-Kata/vendor\n"
 cd $GIT_HOME/CoderDojo-Kata/vendor
@@ -49,4 +49,3 @@ echo -e "Now you can build the integration running\n"
 echo -e "bash ${WORKING_DIR}/BuildIntegration.sh\n"
 
 #bash ${WORKING_DIR}/BuildIntegration.sh
-
