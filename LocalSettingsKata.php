@@ -141,7 +141,7 @@ require_once "$IP/extensions/VisualEditor/VisualEditor.php";
 $wgDefaultUserOptions['visualeditor-enable'] = 1;
 $wgHiddenPrefs[] = 'visualeditor-enable';
 //$wgDefaultUserOptions['visualeditor-enable-experimental'] = 1;
-$wgVisualEditorParsoidURL = 'http://host1.lorenzocipriani.org:80';
+$wgVisualEditorParsoidURL = 'http://srv01.lorenzocipriani.org:80';
 $wgVisualEditorParsoidPrefix = 'kata';
 //$wgSessionsInObjectCache = true;
 //$wgVisualEditorParsoidForwardCookies = true;
